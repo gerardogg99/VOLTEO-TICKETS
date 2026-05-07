@@ -239,10 +239,9 @@
             <option value="claude-sonnet-4-5-20250929">Sonnet 4.5</option>
           </select>
           <div style="font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:7px 10px;line-height:1.8">
-            🖼️ Fotos → <span style="color:var(--success)">Haiku</span> primero<br>
-            🔄 Si falla → <span style="color:var(--accent)">Sonnet</span> automático<br>
-            📄 PDFs → <span style="color:var(--accent)">Sonnet</span> directo<br>
-            ⚠ Si Sonnet falla → revisión manual
+            🤖 Siempre usa <span style="color:var(--accent)">Sonnet 4.5</span><br>
+            📷 Solo fotos JPG/PNG/HEIC<br>
+            ⚠ Amarillo = revisión manual
           </div>
         </div>
         <div id="keyStatus" style="display:none;font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:5px;margin-top:4px"></div>
@@ -292,17 +291,16 @@
     <div>
       <div class="section-label">📁 Archivos de tickets</div>
       <div class="upload-zone" id="dropZone">
-        <input type="file" id="fileInput" accept="image/*,.pdf" multiple onchange="handleFiles(this.files)">
-        <div class="upload-icon">🖼️</div>
+        <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this.files)">
+        <div class="upload-icon">📷</div>
         <div class="upload-text">
           <strong>Arrastra aquí</strong> o haz clic<br>
-          Fotos, PDFs — o arrastra una <strong>carpeta entera</strong>
+          Fotos de tickets — o arrastra una <strong>carpeta entera</strong>
         </div>
         <div class="type-pills">
           <span class="pill pill-img">JPG</span>
           <span class="pill pill-img">PNG</span>
           <span class="pill pill-img">HEIC</span>
-          <span class="pill pill-pdf">PDF</span>
           <span class="pill" style="color:#a78bfa;border-color:#3b2a5f;background:#1a0f30">📁 FOLDER</span>
         </div>
       </div>
@@ -553,30 +551,13 @@ async function handleFiles(fileList) {
   const newFiles = [...fileList];
   for (const f of newFiles) {
     if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
-      const entry = { file: f, type: 'pdf', previewUrl: null, pages: [], pageCount: 0 };
-      uploadedFiles.push(entry);
-      // render PDF pages to images via canvas
-      try {
-        const ab = await f.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
-        entry.pageCount = pdf.numPages;
-        for (let p = 1; p <= pdf.numPages; p++) {
-          const page = await pdf.getPage(p);
-          const vp = page.getViewport({ scale: 1.0 });
-          const canvas = document.createElement('canvas');
-          // Resize to max 900px wide to keep base64 under 300KB
-          const maxW = 1200;
-          const ratio = Math.min(1, maxW / vp.width);
-          canvas.width  = Math.round(vp.width  * ratio);
-          canvas.height = Math.round(vp.height * ratio);
-          const renderCtx = canvas.getContext('2d');
-          renderCtx.scale(ratio, ratio);
-          await page.render({ canvasContext: renderCtx, viewport: vp }).promise;
-          entry.pages.push(canvas.toDataURL('image/jpeg', 0.75).split(',')[1]);
-        }
-        entry.previewUrl = 'data:image/jpeg;base64,' + entry.pages[0];
-      } catch(e) { entry.pageCount = 0; }
-    } else if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
+      // PDFs not supported — show message
+      const log = document.getElementById('plog');
+      if (log) addLog(log, `⚠ ${f.name}: PDFs no soportados, sube fotos JPG/PNG`, 'warn');
+      alert(`"${f.name}" es un PDF. Por favor sube fotos JPG o PNG de los tickets.`);
+      continue;
+    }
+    if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
       const url = URL.createObjectURL(f);
       const b64 = await compressImage(f, 1200, 0.75);
       uploadedFiles.push({ file: f, type: 'image', previewUrl: url, pages: [b64], pageCount: 1 });
@@ -704,7 +685,7 @@ async function startProcessing() {
   const units = [];
   for (const entry of uploadedFiles) {
     entry.pages.forEach((b64, pi) => {
-      units.push({ entry, b64, pageIndex: pi, sourceName: entry.file.name, isPdf: entry.type === 'pdf' });
+      units.push({ entry, b64, pageIndex: pi, sourceName: entry.file.name, isPdf: false });
     });
   }
 
@@ -719,26 +700,13 @@ async function startProcessing() {
   finalize();
 }
 
-async function processUnit(unit, modelOverride=null) {
+async function processUnit(unit) {
   const log = document.getElementById('plog');
-  const label = unit.isPdf
-    ? `${unit.sourceName} p.${unit.pageIndex+1}`
-    : unit.sourceName;
+  const label = unit.sourceName;
 
-  // PDFs go directly to Sonnet — scanned tickets need better vision
-  // Images start with Haiku, fallback to Sonnet only if needed
-  const model = modelOverride || (unit.isPdf ? 'claude-sonnet-4-5-20250929' : 'claude-haiku-4-5');
-  const isFallback = !!modelOverride;
-  const modelLabel = model.includes('sonnet') ? 'Sonnet' : 'Haiku';
-
-  if (!isFallback) {
-    addLog(log, `🔍 Analizando ${label}... [${modelLabel}]`, 'info');
-  } else {
-    addLog(log, `🔄 Reintentando ${label} con Sonnet...`, 'warn');
-  }
-
+  addLog(log, `🔍 Analizando ${label}...`, 'info');
   const sizeKB = Math.round(unit.b64.length * 0.75 / 1024);
-  addLog(log, `📐 ${sizeKB} KB ✓`, 'info');
+  addLog(log, `📐 ${sizeKB} KB`, 'info');
 
   const prompt = `Ticket de volteo de arena México. Puede estar rotado en cualquier ángulo.
 Extrae todos los tickets visibles. Logo "RCA" = referencia de orientación.
@@ -759,7 +727,7 @@ Sin tickets: {"tickets":[]}`;
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': getKey(), 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({
-          model,
+          model: 'claude-sonnet-4-5-20250929',
           max_tokens: 300,
           messages: [{ role: 'user', content: [
             { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: unit.b64 } },
@@ -786,32 +754,15 @@ Sin tickets: {"tickets":[]}`;
     const tickets = Array.isArray(parsed.tickets) ? parsed.tickets : [];
 
     if (tickets.length === 0) {
-      if (!isFallback) {
-        // Haiku found nothing — retry with Sonnet
-        addLog(log, `⚠ Haiku no detectó tickets — reintentando con Sonnet...`, 'warn');
-        await processUnit(unit, 'claude-sonnet-4-5-20250929');
-      } else {
-        addLog(log, `⚠ ${label}: sin tickets detectados (revisión manual)`, 'warn');
-      }
+      addLog(log, `⚠ ${label}: sin tickets detectados — revisión manual`, 'warn');
       return;
     }
 
     const tiro = document.getElementById('cfgTiro').value;
     const servicio = document.getElementById('cfgServicio').value;
     const capacidad = document.getElementById('cfgCapacidad').value;
-    const previewUrl = unit.entry.previewUrl;
     const multi = tickets.length > 1;
-    if (multi) addLog(log, `📦 ${label}: ${tickets.length} tickets en imagen`, 'info');
-
-    // Check if any ticket has low confidence
-    const hasLowConf = tickets.some(t => t.confident === false);
-
-    if (hasLowConf && !isFallback) {
-      // Haiku not confident — retry everything with Sonnet
-      addLog(log, `⚠ Haiku inseguro en ${label} — reintentando con Sonnet...`, 'warn');
-      await processUnit(unit, 'claude-sonnet-4-5-20250929');
-      return;
-    }
+    if (multi) addLog(log, `📦 ${tickets.length} tickets en imagen`, 'info');
 
     tickets.forEach(t => {
       const eco = (t.numero_economico || '').trim();
@@ -820,22 +771,18 @@ Sin tickets: {"tickets":[]}`;
       const confident = t.confident !== false;
       const row = {
         id: rowCounter++,
-        previewUrl: unit.entry.type === 'pdf' ? null : previewUrl,
-        isPdf: unit.isPdf,
+        previewUrl: unit.entry.previewUrl,
         sourceName: label,
         multiTicket: multi,
         fecha: t.fecha || '',
         folio: t.folio || '',
         numero_economico: eco,
         placas, tiro, servicio, capacidad,
-        confident,
-        usedSonnet: isFallback
+        confident
       };
       rows.push(row);
       renderRow(row);
-      const modelTag = isFallback ? ' [Sonnet]' : ' [Haiku]';
-      addLog(log,
-        `${confident ? '✓' : '⚠'} Folio ${row.folio||'?'} | ${row.numero_economico||'?'} | ${row.fecha||'?'}${modelTag}`,
+      addLog(log, `${confident ? '✓' : '⚠'} Folio ${row.folio||'?'} | ${row.numero_economico||'?'} | ${row.fecha||'?'}`,
         confident ? 'ok' : 'warn');
     });
 
@@ -853,15 +800,39 @@ function renderRow(row) {
   tr.id = `row-${row.id}`;
   if (!row.confident) tr.classList.add('low-conf');
 
-  const thumbHtml = row.isPdf
-    ? `<div class="pdf-thumb">📄</div>`
-    : `<img class="thumb" src="${row.previewUrl}" onclick="openLightbox('${row.previewUrl}')">`;
-
   const multiHtml = row.multiTicket ? `<span class="multi-badge">×multi</span>` : '';
-  const modelHtml = row.usedSonnet
-    ? `<span style="font-size:9px;color:var(--accent);font-family:var(--mono);display:block;margin-top:2px">Sonnet</span>`
-    : `<span style="font-size:9px;color:var(--muted);font-family:var(--mono);display:block;margin-top:2px">Haiku</span>`;
   const ecoColor = row.numero_economico.includes('G-01') ? '#a78bfa' : '#34d399';
+
+  tr.innerHTML = `
+    <td style="color:var(--muted);width:28px">${rows.length}</td>
+    <td><img class="thumb" src="${row.previewUrl}" onclick="openLightbox('${row.previewUrl}')">${multiHtml}</td>
+    <td><input class="cell-edit" value="${row.fecha}"
+      onchange="rows.find(r=>r.id==${row.id}).fecha=this.value;updateStats()"></td>
+    <td><input class="cell-edit" value="${row.folio}" style="width:80px"
+      onchange="rows.find(r=>r.id==${row.id}).folio=this.value"></td>
+    <td>
+      <select style="background:var(--bg);border:none;border-bottom:1px solid transparent;color:${ecoColor};font-family:var(--mono);font-size:12px;outline:none;"
+        onchange="const r=rows.find(x=>x.id==${row.id});r.numero_economico=this.value;r.placas=this.value==='G-01'?'VR-7129-C':'VS-4578-C';this.closest('tr').querySelector('.placa-cell').textContent=r.placas;updateStats()">
+        <option ${row.numero_economico.includes('G-01')?'selected':''}>G-01</option>
+        <option ${row.numero_economico.includes('G-02')?'selected':''}>G-02</option>
+      </select>
+    </td>
+    <td class="placa-cell" style="color:var(--muted);font-size:11px">${row.placas}</td>
+    <td><span class="tiro-tag">${row.tiro.split('/')[0].trim()}</span></td>
+    <td>${row.confident
+      ? '<span class="conf-badge conf-high">✓ OK</span>'
+      : '<span class="conf-badge conf-low">⚠ Revisar</span>'}</td>
+    <td style="text-align:center">
+      ${!row.confident ? `
+        <label style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px">
+          <input type="checkbox" onchange="verifyRow(${row.id}, this.checked)"
+            style="width:15px;height:15px;cursor:pointer;accent-color:var(--success)">
+        </label>` : ''}
+    </td>`;
+
+  tbody.appendChild(tr);
+  updateStats();
+}
 
   tr.innerHTML = `
     <td style="color:var(--muted);width:28px">${rows.length}</td>
