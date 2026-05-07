@@ -314,10 +314,14 @@
 <script>
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
-// Google Drive config
 const GDRIVE_CLIENT_ID = '';
 const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 let gapiReady = false;
+
+let uploadedFiles = [];
+let rows = [];
+let processing = false;
+let rowCounter = 0;
 
 // ── API KEY HELPERS ──
 function getKey() { return document.getElementById('cfgApiKey').value.trim(); }
@@ -359,34 +363,28 @@ window.addEventListener('load', () => {
       if (el) el.value = gcid;
     }, 100);
   }
-});
 
-let uploadedFiles = [];
-let rows = [];
-let processing = false;
-let rowCounter = 0;
-
-// ── DRAG & DROP — supports files AND folders ──
-const dropZone = document.getElementById('dropZone');
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
-dropZone.addEventListener('drop', async e => {
-  e.preventDefault(); dropZone.classList.remove('drag');
-  const items = [...(e.dataTransfer.items || [])];
-  // Support folder drops via FileSystemEntry API
-  const allFiles = [];
-  await Promise.all(items.map(item => {
-    if (item.webkitGetAsEntry) {
-      const entry = item.webkitGetAsEntry();
-      return entry ? collectEntries(entry, allFiles) : Promise.resolve();
-    } else {
-      const f = item.getAsFile();
-      if (f) allFiles.push(f);
-      return Promise.resolve();
-    }
-  }));
-  if (allFiles.length) handleFiles(allFiles);
-  else handleFiles(e.dataTransfer.files);
+  // ── DRAG & DROP — must init after DOM is ready ──
+  const dropZone = document.getElementById('dropZone');
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', async e => {
+    e.preventDefault(); dropZone.classList.remove('drag');
+    const items = [...(e.dataTransfer.items || [])];
+    const allFiles = [];
+    await Promise.all(items.map(item => {
+      if (item.webkitGetAsEntry) {
+        const entry = item.webkitGetAsEntry();
+        return entry ? collectEntries(entry, allFiles) : Promise.resolve();
+      } else {
+        const f = item.getAsFile();
+        if (f) allFiles.push(f);
+        return Promise.resolve();
+      }
+    }));
+    if (allFiles.length) handleFiles(allFiles);
+    else handleFiles(e.dataTransfer.files);
+  });
 });
 
 // Recursively collect files from folder entries
