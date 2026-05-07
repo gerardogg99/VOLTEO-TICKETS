@@ -728,6 +728,10 @@ async function processUnit(unit) {
 
   addLog(log, `🔍 Analizando ${label}...`, 'info');
 
+  // Show compressed size in log
+  const sizeKB = Math.round(unit.b64.length * 0.75 / 1024);
+  addLog(log, `📐 Tamaño imagen: ${sizeKB} KB ${sizeKB > 800 ? '⚠ muy grande' : '✓ ok'}`, sizeKB > 800 ? 'warn' : 'info');
+
   const prompt = `Eres un extractor de datos de tickets de volteo de arena en México (empresa G3 Volteos).
 
 ORIENTACIÓN: El ticket puede estar en cualquier orientación — derecho, volteado 180°, de lado. Lee el contenido sin importar cómo esté rotado. Busca el logo "RCA" para orientarte.
