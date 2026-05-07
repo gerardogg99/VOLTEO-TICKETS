@@ -6,6 +6,7 @@
 <title>G3 Volteos – Captura de Tickets</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root {
     --bg: #0f1117;
@@ -41,15 +42,15 @@
     overflow-y: auto;
   }
   .section-label {
-    font-family: var(--mono); font-size: 9px; font-weight: 600;
-    letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.4rem;
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.35rem;
   }
   .config-block { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; }
-  label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 3px; font-family: var(--mono); }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; font-family: var(--mono); }
   input[type=text], input[type=number], select {
     width: 100%; background: var(--bg); border: 1px solid var(--border);
-    color: var(--text); border-radius: 5px; padding: 5px 8px;
-    font-family: var(--mono); font-size: 12px; outline: none; transition: border-color 0.2s;
+    color: var(--text); border-radius: 5px; padding: 7px 10px;
+    font-family: var(--mono); font-size: 13px; outline: none; transition: border-color 0.2s;
   }
   input:focus, select:focus { border-color: var(--accent2); }
   .field-group { margin-bottom: 0.5rem; }
@@ -124,7 +125,7 @@
 
   .main { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; overflow: auto; }
 
-  .progress-area { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+  .progress-area { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; }
   .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
   .progress-title { font-family: var(--mono); font-size: 12px; color: var(--muted); }
   .progress-pct { font-family: var(--mono); font-size: 12px; color: var(--accent); }
@@ -217,19 +218,28 @@
   <aside class="sidebar">
 
     <div>
-      <div class="section-label">🔑 API Key</div>
+      <div class="section-label">🔑 API Key de Anthropic</div>
       <div class="config-block">
         <div class="field-group">
+          <label>API KEY <span style="color:var(--danger)">*</span></label>
           <div style="position:relative">
             <input type="password" id="cfgApiKey" placeholder="sk-ant-api03-..." oninput="onKeyInput(this)"
               style="padding-right:36px">
             <span onclick="toggleKeyVis()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);font-size:13px" id="eyeIcon">👁</span>
           </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">
+            Obtén la tuya en <span style="color:var(--accent2)">platform.anthropic.com</span><br>
+            Se guarda solo en tu navegador, nunca se sube.
+          </div>
         </div>
-        <select id="cfgModel" style="display:none">
-          <option value="claude-sonnet-4-5-20250929" selected>Sonnet 4.5</option>
-        </select>
-        <div id="keyStatus" style="display:none;font-family:var(--mono);font-size:11px;padding:5px 8px;border-radius:5px"></div>
+        <div class="field-group">
+          
+          <select id="cfgModel" style="display:none">
+            
+            <option value="claude-sonnet-4-5-20250929" selected>Sonnet 4.5</option>
+          </select>
+        </div>
+        <div id="keyStatus" style="display:none;font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:5px;margin-top:4px"></div>
       </div>
     </div>
 
@@ -241,7 +251,7 @@
           <input type="number" id="cfgPrecio" value="900" step="50">
         </div>
         <div class="field-group">
-          <label>TIRO</label>
+          <label>TIRO PREDETERMINADO</label>
           <select id="cfgTiro">
             <option value="Banco El Marino / Pomoca">Banco El Marino / Pomoca</option>
             <option value="Banco Carretas / Pomoca">Banco Carretas / Pomoca</option>
@@ -260,22 +270,32 @@
 
     <div>
       <div class="section-label">☁️ Google Drive</div>
-      <button onclick="openDrivePicker()" id="btnDrive"
-        style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:border-color 0.2s"
-        onmouseover="this.style.borderColor='#4285f4'" onmouseout="this.style.borderColor='var(--border)'">
-        <span style="font-size:15px">📂</span> Abrir Google Drive
-      </button>
-      <div id="driveStatus" style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center"></div>
+      <div class="config-block" style="padding:0.75rem">
+        
+        <button onclick="openDrivePicker()" id="btnDrive"
+          style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:border-color 0.2s"
+          onmouseover="this.style.borderColor='#4285f4'" onmouseout="this.style.borderColor='var(--border)'">
+          <span style="font-size:16px">📂</span> Abrir Google Drive
+        </button>
+        <div id="driveStatus" style="font-size:10px;color:var(--muted);margin-top:6px;text-align:center"></div>
+      </div>
     </div>
 
     <div>
-      <div class="section-label">📷 Fotos de tickets</div>
+      <div class="section-label">📁 Archivos de tickets</div>
       <div class="upload-zone" id="dropZone">
         <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this.files)">
-        <div class="upload-icon" style="font-size:1.4rem;margin-bottom:0.25rem">📷</div>
+        <div class="upload-icon">🖼️</div>
         <div class="upload-text">
           <strong>Arrastra aquí</strong> o haz clic<br>
-          JPG · PNG · HEIC · Carpeta
+          Fotos — o arrastra una <strong>carpeta entera</strong>
+        </div>
+        <div class="type-pills">
+          <span class="pill pill-img">JPG</span>
+          <span class="pill pill-img">PNG</span>
+          <span class="pill pill-img">HEIC</span>
+          
+          <span class="pill" style="color:#a78bfa;border-color:#3b2a5f;background:#1a0f30">📁 FOLDER</span>
         </div>
       </div>
       <div class="file-list" id="fileList"></div>
@@ -292,7 +312,7 @@
       <div class="empty-state" id="emptyState">
         <div class="empty-icon">🧾</div>
         <div class="empty-text">
-          Sube fotos de tickets (JPG, PNG, HEIC)<br>
+          Sube fotos de tickets<br>
           — incluso fotos con varios tickets —<br>
           luego presiona <strong style="color:var(--accent)">PROCESAR TICKETS</strong>
         </div>
@@ -300,9 +320,9 @@
     </div>
     <div class="bottom-bar" id="bottomBar" style="display:none;">
       <div class="week-label">Semana: <strong id="weekLabel">—</strong></div>
-      <button class="btn btn-export" id="btnExport" onclick="tryExport()" disabled>⬇ Descargar Excel</button>
+      <button class="btn btn-export" id="btnExport" onclick="exportExcel()" disabled>⬇ Descargar Excel</button>
       <button class="btn btn-clear" onclick="clearAll()">✕ Limpiar</button>
-      <div class="warn-note" id="warnNote" style="display:none;"></div>
+      <div class="warn-note" id="warnNote" style="display:none;">⚠ Filas amarillas requieren revisión</div>
     </div>
   </div>
 </div>
@@ -312,16 +332,15 @@
 </div>
 
 <script>
+// ── PDF.js worker ──
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
-const GDRIVE_CLIENT_ID = '';
+// Google Drive config — user fills in their own Client ID
+const GDRIVE_CLIENT_ID = ''; // Set your Google OAuth client ID here if using Drive
 const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 let gapiReady = false;
-
-let uploadedFiles = [];
-let rows = [];
-let processing = false;
-let rowCounter = 0;
 
 // ── API KEY HELPERS ──
 function getKey() { return document.getElementById('cfgApiKey').value.trim(); }
@@ -363,28 +382,36 @@ window.addEventListener('load', () => {
       if (el) el.value = gcid;
     }, 100);
   }
+});
 
-  // ── DRAG & DROP — must init after DOM is ready ──
-  const dropZone = document.getElementById('dropZone');
-  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
-  dropZone.addEventListener('drop', async e => {
-    e.preventDefault(); dropZone.classList.remove('drag');
-    const items = [...(e.dataTransfer.items || [])];
-    const allFiles = [];
-    await Promise.all(items.map(item => {
-      if (item.webkitGetAsEntry) {
-        const entry = item.webkitGetAsEntry();
-        return entry ? collectEntries(entry, allFiles) : Promise.resolve();
-      } else {
-        const f = item.getAsFile();
-        if (f) allFiles.push(f);
-        return Promise.resolve();
-      }
-    }));
-    if (allFiles.length) handleFiles(allFiles);
-    else handleFiles(e.dataTransfer.files);
-  });
+let excelData = null;
+let excelFileName = "Conciliaciones_Semanales.xlsx";
+let uploadedFiles = []; // {file, type:'image'|'pdf', previewUrl, pages:[base64,...]}
+let rows = [];
+let processing = false;
+let rowCounter = 0;
+
+// ── DRAG & DROP — supports files AND folders ──
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', async e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  const items = [...(e.dataTransfer.items || [])];
+  // Support folder drops via FileSystemEntry API
+  const allFiles = [];
+  await Promise.all(items.map(item => {
+    if (item.webkitGetAsEntry) {
+      const entry = item.webkitGetAsEntry();
+      return entry ? collectEntries(entry, allFiles) : Promise.resolve();
+    } else {
+      const f = item.getAsFile();
+      if (f) allFiles.push(f);
+      return Promise.resolve();
+    }
+  }));
+  if (allFiles.length) handleFiles(allFiles);
+  else handleFiles(e.dataTransfer.files);
 });
 
 // Recursively collect files from folder entries
@@ -467,9 +494,9 @@ function buildPicker(accessToken) {
   const picker = new google.picker.PickerBuilder()
     .addView(new google.picker.DocsView()
       .setIncludeFolders(false)
-      .setMimeTypes('image/jpeg,image/png,image/heic,image/webp,application/pdf'))
+      .setMimeTypes('image/jpeg,image/png,image/heic,image/webp'))
     .setOAuthToken(accessToken)
-    .setTitle('Selecciona tickets (PDFs e imágenes)')
+    .setTitle('Selecciona fotos de tickets')
     .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
     .setCallback(async data => {
       if (data.action !== google.picker.Action.PICKED) return;
@@ -518,15 +545,32 @@ async function handleFiles(fileList) {
   const newFiles = [...fileList];
   for (const f of newFiles) {
     if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
-      // PDFs not supported — show message
-      const log = document.getElementById('plog');
-      if (log) addLog(log, `⚠ ${f.name}: PDFs no soportados, sube fotos JPG/PNG`, 'warn');
-      alert(`"${f.name}" es un PDF. Por favor sube fotos JPG o PNG de los tickets.`);
-      continue;
-    }
-    if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
+      const entry = { file: f, type: 'pdf', previewUrl: null, pages: [], pageCount: 0 };
+      uploadedFiles.push(entry);
+      // render PDF pages to images via canvas
+      try {
+        const ab = await f.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+        entry.pageCount = pdf.numPages;
+        for (let p = 1; p <= pdf.numPages; p++) {
+          const page = await pdf.getPage(p);
+          const vp = page.getViewport({ scale: 1.0 });
+          const canvas = document.createElement('canvas');
+          // Resize to max 900px wide to keep base64 under 300KB
+          const maxW = 900;
+          const ratio = Math.min(1, maxW / vp.width);
+          canvas.width  = Math.round(vp.width  * ratio);
+          canvas.height = Math.round(vp.height * ratio);
+          const renderCtx = canvas.getContext('2d');
+          renderCtx.scale(ratio, ratio);
+          await page.render({ canvasContext: renderCtx, viewport: vp }).promise;
+          entry.pages.push(canvas.toDataURL('image/jpeg', 0.55).split(',')[1]);
+        }
+        entry.previewUrl = 'data:image/jpeg;base64,' + entry.pages[0];
+      } catch(e) { entry.pageCount = 0; }
+    } else if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
       const url = URL.createObjectURL(f);
-      const b64 = await compressImage(f, 1200, 0.75);
+      const b64 = await compressImage(f, 900, 0.55);
       uploadedFiles.push({ file: f, type: 'image', previewUrl: url, pages: [b64], pageCount: 1 });
     }
   }
@@ -561,6 +605,16 @@ function removeFile(idx) {
   checkReady();
 }
 
+function loadExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  excelFileName = file.name;
+  document.getElementById('excelName').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = e => { excelData = e.target.result; };
+  reader.readAsArrayBuffer(file);
+  checkReady();
+}
 
 function checkReady() {
   const hasKey = getKey().startsWith('sk-ant-');
@@ -581,7 +635,7 @@ function fileToBase64(file) {
 }
 
 // Compress image to max width and JPEG quality — keeps base64 under ~300KB
-function compressImage(file, maxW=1200, quality=0.75) {
+function compressImage(file, maxW=900, quality=0.55) {
   return new Promise((res, rej) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -628,11 +682,18 @@ async function startProcessing() {
       <div class="progress-bar-outer"><div class="progress-bar-inner" id="pbar" style="width:0%"></div></div>
       <div class="progress-log" id="plog"></div>
     </div>
+    <div class="stats-bar" id="statsBar" style="display:none">
+      <div class="stat"><div class="stat-val ok" id="sOk">0</div><div class="stat-lbl">SEGUROS</div></div>
+      <div class="stat"><div class="stat-val warn" id="sWarn">0</div><div class="stat-lbl">REVISAR</div></div>
+      <div class="stat"><div class="stat-val" id="sTotal">0</div><div class="stat-lbl">VIAJES</div></div>
+      <div class="stat"><div class="stat-val" id="sG01" style="color:#a78bfa">0</div><div class="stat-lbl">G-01</div></div>
+      <div class="stat"><div class="stat-val" id="sG02" style="color:#34d399">0</div><div class="stat-lbl">G-02</div></div>
+    </div>
     <div class="table-wrap" id="tableWrap" style="display:none">
       <table id="dataTable">
         <thead><tr>
-          <th style="width:28px">#</th><th style="width:44px">IMG</th><th>FECHA</th><th>FOLIO</th>
-          <th>NÚM. ECO.</th><th>PLACAS</th><th>TIRO</th><th style="width:90px">CONF.</th><th style="width:60px">✓ OK</th>
+          <th>#</th><th>FUENTE</th><th>FECHA</th><th>FOLIO</th>
+          <th>NÚM. ECO.</th><th>PLACAS</th><th>TIRO</th><th>CONF.</th>
         </tr></thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -642,11 +703,11 @@ async function startProcessing() {
   const units = [];
   for (const entry of uploadedFiles) {
     entry.pages.forEach((b64, pi) => {
-      units.push({ entry, b64, pageIndex: pi, sourceName: entry.file.name, isPdf: false });
+      units.push({ entry, b64, pageIndex: pi, sourceName: entry.file.name, isPdf: entry.type === 'pdf' });
     });
   }
 
-  const BATCH = 1;
+  const BATCH = 3;
   for (let i = 0; i < units.length; i += BATCH) {
     const batch = units.slice(i, Math.min(i + BATCH, units.length));
     await Promise.all(batch.map(u => processUnit(u)));
@@ -659,22 +720,33 @@ async function startProcessing() {
 
 async function processUnit(unit) {
   const log = document.getElementById('plog');
-  const label = unit.sourceName;
+  const label = unit.isPdf
+    ? `${unit.sourceName} p.${unit.pageIndex+1}`
+    : unit.sourceName;
 
   addLog(log, `🔍 Analizando ${label}...`, 'info');
-  const sizeKB = Math.round(unit.b64.length * 0.75 / 1024);
-  addLog(log, `📐 ${sizeKB} KB`, 'info');
 
-  const prompt = `Ticket de volteo de arena México. Puede estar rotado en cualquier ángulo.
-Extrae todos los tickets visibles. Logo "RCA" = referencia de orientación.
-Campos por ticket:
-- fecha: D-M-AA → DD/MM/YYYY (ej "1-4-26"→"01/04/2026", año 26=2026)
-- folio: número rojo/naranja impreso en recuadro (4 dígitos)
-- numero_economico: G-01 o G-02 (placas VR-7129-C=G-01, VS-4578-C=G-02)
-- confident: false si algo es ilegible
+  const prompt = `Eres un extractor de datos de tickets de volteo de arena en México (empresa G3 Volteos).
 
-JSON únicamente:
+ORIENTACIÓN: El ticket puede estar en cualquier orientación — derecho, volteado 180°, de lado. Lee el contenido sin importar cómo esté rotado. Busca el logo "RCA" para orientarte.
+
+Los tickets tienen este formato:
+- FECHA: escrita a mano en formato D-M-AA (ej: "1-4-26" = 01/04/2026, "29-4-26" = 29/04/2026)
+- FOLIO: número impreso en rojo/naranja dentro de un recuadro gris (4 dígitos, ej: 0984, 0800)
+- CAMIÓN No. ECO: escrito a mano, siempre G-01 o G-02
+- PLACAS: VS-4578-C = G-02, VR-7129-C = G-01
+
+PUEDE HABER UNO O VARIOS tickets en la misma imagen. Extrae TODOS los que veas.
+
+Reglas:
+- FECHA siempre en formato DD/MM/YYYY. Año "26" → 2026.
+- FOLIO: solo el número rojo/naranja impreso, no escribas a mano.
+- Si las placas son VS-4578-C el camión es G-02. Si son VR-7129-C es G-01.
+- confident=false si algún campo es dudoso o ilegible.
+
+Responde SOLO con JSON, sin texto extra ni bloques de código:
 {"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","confident":true}]}
+Varios tickets: {"tickets":[{...},{...}]}
 Sin tickets: {"tickets":[]}`;
 
   try {
@@ -684,8 +756,8 @@ Sin tickets: {"tickets":[]}`;
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': getKey(), 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20250929',
-          max_tokens: 300,
+          model: getModel(),
+          max_tokens: 800,
           messages: [{ role: 'user', content: [
             { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: unit.b64 } },
             { type: 'text', text: prompt }
@@ -693,7 +765,9 @@ Sin tickets: {"tickets":[]}`;
         })
       });
     } catch(fetchErr) {
-      addLog(log, `✗ ${label}: Error de red — ${fetchErr.message}`, 'err');
+      // Network/CORS error — show details
+      addLog(log, `✗ ${label}: Error de red — ${fetchErr.message}. Verifica que el Worker esté activo.`, 'err');
+      console.error('Fetch error:', fetchErr);
       return;
     }
 
@@ -702,7 +776,6 @@ Sin tickets: {"tickets":[]}`;
       addLog(log, `✗ ${label}: API respondió ${resp.status} — ${errText.substring(0,100)}`, 'err');
       return;
     }
-
     const data = await resp.json();
     const raw = (data.content?.[0]?.text || '{}').trim().replace(/```json|```/g,'');
     let parsed;
@@ -711,36 +784,38 @@ Sin tickets: {"tickets":[]}`;
     const tickets = Array.isArray(parsed.tickets) ? parsed.tickets : [];
 
     if (tickets.length === 0) {
-      addLog(log, `⚠ ${label}: sin tickets detectados — revisión manual`, 'warn');
+      addLog(log, `⚠ ${label}: sin tickets detectados`, 'warn');
       return;
     }
+
+    const multi = tickets.length > 1;
+    if (multi) addLog(log, `📦 ${label}: ${tickets.length} tickets en una imagen`, 'info');
 
     const tiro = document.getElementById('cfgTiro').value;
     const servicio = document.getElementById('cfgServicio').value;
     const capacidad = document.getElementById('cfgCapacidad').value;
-    const multi = tickets.length > 1;
-    if (multi) addLog(log, `📦 ${tickets.length} tickets en imagen`, 'info');
+    const previewUrl = unit.entry.previewUrl;
 
     tickets.forEach(t => {
       const eco = (t.numero_economico || '').trim();
       const placas = eco.toUpperCase().includes('G-01') ? 'VR-7129-C'
                    : eco.toUpperCase().includes('G-02') ? 'VS-4578-C' : '';
-      const confident = t.confident !== false;
       const row = {
         id: rowCounter++,
-        previewUrl: unit.entry.previewUrl,
+        previewUrl: unit.entry.type === 'pdf' ? null : previewUrl,
+        isPdf: unit.isPdf,
         sourceName: label,
         multiTicket: multi,
         fecha: t.fecha || '',
         folio: t.folio || '',
         numero_economico: eco,
         placas, tiro, servicio, capacidad,
-        confident
+        confident: t.confident !== false
       };
       rows.push(row);
       renderRow(row);
-      addLog(log, `${confident ? '✓' : '⚠'} Folio ${row.folio||'?'} | ${row.numero_economico||'?'} | ${row.fecha||'?'}`,
-        confident ? 'ok' : 'warn');
+      addLog(log, `${row.confident?'✓':'⚠'} Folio ${row.folio||'?'} | ${row.numero_economico||'?'} | ${row.fecha||'?'}`,
+        row.confident ? 'ok' : 'warn');
     });
 
   } catch(e) {
@@ -752,17 +827,27 @@ function renderRow(row) {
   const tbody = document.getElementById('tbody');
   if (!tbody) return;
   document.getElementById('tableWrap').style.display = '';
+  document.getElementById('statsBar').style.display = '';
 
   const tr = document.createElement('tr');
   tr.id = `row-${row.id}`;
   if (!row.confident) tr.classList.add('low-conf');
 
+  const thumbHtml = row.isPdf
+    ? `<div class="pdf-thumb">📄</div>`
+    : `<img class="thumb" src="${row.previewUrl}" onclick="openLightbox('${row.previewUrl}')">`;
+
   const multiHtml = row.multiTicket ? `<span class="multi-badge">×multi</span>` : '';
+  const sourceClass = row.isPdf ? 'pdf-tag' : '';
+
   const ecoColor = row.numero_economico.includes('G-01') ? '#a78bfa' : '#34d399';
 
   tr.innerHTML = `
     <td style="color:var(--muted);width:28px">${rows.length}</td>
-    <td><img class="thumb" src="${row.previewUrl}" onclick="openLightbox('${row.previewUrl}')">${multiHtml}</td>
+    <td>
+      ${thumbHtml}
+      ${multiHtml}
+    </td>
     <td><input class="cell-edit" value="${row.fecha}"
       onchange="rows.find(r=>r.id==${row.id}).fecha=this.value;updateStats()"></td>
     <td><input class="cell-edit" value="${row.folio}" style="width:80px"
@@ -778,45 +863,7 @@ function renderRow(row) {
     <td><span class="tiro-tag">${row.tiro.split('/')[0].trim()}</span></td>
     <td>${row.confident
       ? '<span class="conf-badge conf-high">✓ OK</span>'
-      : '<span class="conf-badge conf-low">⚠ Revisar</span>'}</td>
-    <td style="text-align:center">
-      ${!row.confident ? `
-        <label style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px">
-          <input type="checkbox" onchange="verifyRow(${row.id}, this.checked)"
-            style="width:15px;height:15px;cursor:pointer;accent-color:var(--success)">
-        </label>` : ''}
-    </td>`;
-
-  tbody.appendChild(tr);
-  updateStats();
-}
-
-  tr.innerHTML = `
-    <td style="color:var(--muted);width:28px">${rows.length}</td>
-    <td>${thumbHtml}${multiHtml}${modelHtml}</td>
-    <td><input class="cell-edit" value="${row.fecha}"
-      onchange="rows.find(r=>r.id==${row.id}).fecha=this.value;updateStats()"></td>
-    <td><input class="cell-edit" value="${row.folio}" style="width:80px"
-      onchange="rows.find(r=>r.id==${row.id}).folio=this.value"></td>
-    <td>
-      <select style="background:var(--bg);border:none;border-bottom:1px solid transparent;color:${ecoColor};font-family:var(--mono);font-size:12px;outline:none;"
-        onchange="const r=rows.find(x=>x.id==${row.id});r.numero_economico=this.value;r.placas=this.value==='G-01'?'VR-7129-C':'VS-4578-C';this.closest('tr').querySelector('.placa-cell').textContent=r.placas;updateStats()">
-        <option ${row.numero_economico.includes('G-01')?'selected':''}>G-01</option>
-        <option ${row.numero_economico.includes('G-02')?'selected':''}>G-02</option>
-      </select>
-    </td>
-    <td class="placa-cell" style="color:var(--muted);font-size:11px">${row.placas}</td>
-    <td><span class="tiro-tag">${row.tiro.split('/')[0].trim()}</span></td>
-    <td>${row.confident
-      ? '<span class="conf-badge conf-high">✓ OK</span>'
-      : '<span class="conf-badge conf-low">⚠ Revisar</span>'}</td>
-    <td style="text-align:center">
-      ${!row.confident ? `
-        <label style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px">
-          <input type="checkbox" onchange="verifyRow(${row.id}, this.checked)"
-            style="width:15px;height:15px;cursor:pointer;accent-color:var(--success)">
-        </label>` : ''}
-    </td>`;
+      : '<span class="conf-badge conf-low">⚠ Revisar</span>'}</td>`;
 
   tbody.appendChild(tr);
   updateStats();
@@ -839,32 +886,18 @@ function addLog(el, text, cls='') {
   el.scrollTop = el.scrollHeight;
 }
 
-function verifyRow(id, checked) {
-  const row = rows.find(r=>r.id===id);
-  if (!row) return;
-  const tr = document.getElementById(`row-${id}`);
-  if (checked) {
-    // Mark as verified — remove yellow, update badge
-    row.confident = true;
-    tr.classList.remove('low-conf');
-    tr.querySelector('.conf-badge').className = 'conf-badge conf-high';
-    tr.querySelector('.conf-badge').textContent = '✓ OK';
-    tr.querySelector('input[type=checkbox]').disabled = true;
-    tr.querySelector('input[type=checkbox]').parentElement.innerHTML = '<span style="color:var(--success);font-size:13px">✓</span>';
-  }
-  updateStats();
-}
-
 function updateStats() {
+  const ok   = rows.filter(r=>r.confident).length;
   const warn = rows.filter(r=>!r.confident).length;
+  const g01  = rows.filter(r=>r.numero_economico.includes('G-01')).length;
+  const g02  = rows.filter(r=>r.numero_economico.includes('G-02')).length;
+  document.getElementById('sOk').textContent = ok;
+  document.getElementById('sWarn').textContent = warn;
+  document.getElementById('sTotal').textContent = rows.length;
+  document.getElementById('sG01').textContent = g01;
+  document.getElementById('sG02').textContent = g02;
+  if (warn > 0) document.getElementById('warnNote').style.display = 'flex';
   document.getElementById('weekLabel').textContent = detectWeekLabel();
-  const warnNote = document.getElementById('warnNote');
-  if (warn > 0) {
-    warnNote.style.display = 'flex';
-    warnNote.textContent = `⚠ ${warn} fila(s) amarilla(s) — revisa antes de exportar`;
-  } else {
-    warnNote.style.display = 'none';
-  }
 }
 
 function finalize() {
@@ -874,9 +907,7 @@ function finalize() {
   btn.innerHTML = '<span>✓</span> LISTO — procesar de nuevo';
   btn.disabled = false;
   document.getElementById('btnExport').disabled = rows.length === 0;
-  const pending = rows.filter(r=>!r.confident).length;
-  document.getElementById('headerMeta').textContent =
-    `${rows.length} tickets listos${pending > 0 ? ` — ${pending} requieren revisión` : ' — listo para exportar'}`;
+  document.getElementById('headerMeta').textContent = `${rows.length} tickets listos — revisa y descarga`;
   updateStats();
 }
 
@@ -895,23 +926,6 @@ function parseDate(s) {
   const [d,m,y] = parts.map(Number);
   if (!d||!m||!y) return null;
   return new Date(y < 100 ? 2000+y : y, m-1, d);
-}
-
-function tryExport() {
-  const pending = rows.filter(r=>!r.confident).length;
-  if (pending > 0) {
-    const warnNote = document.getElementById('warnNote');
-    warnNote.style.display = 'flex';
-    warnNote.textContent = `⚠ Aún hay ${pending} fila(s) sin verificar — revísalas o dales ✓ antes de exportar`;
-    warnNote.style.color = 'var(--danger)';
-    // Flash the unverified rows
-    document.querySelectorAll('tr.low-conf').forEach(tr => {
-      tr.style.outline = '2px solid var(--danger)';
-      setTimeout(() => tr.style.outline = '', 1500);
-    });
-    return;
-  }
-  exportExcel();
 }
 
 // ── EXPORT — always generates fresh Excel with exact template format ──
@@ -1008,21 +1022,22 @@ function openLightbox(src) {
 }
 
 function clearAll() {
-  uploadedFiles = []; rows = []; rowCounter = 0;
+  uploadedFiles = []; rows = []; rowCounter = 0; excelData = null;
+  document.getElementById('excelName').textContent = 'Subir Conciliaciones.xlsx';
   document.getElementById('fileList').innerHTML = '';
   document.querySelector('.upload-text').innerHTML =
-    '<strong>Arrastra aquí</strong> o haz clic<br>Fotos de tickets — o arrastra una <strong>carpeta entera</strong>';
+    '<strong>Arrastra aquí</strong> o haz clic<br>Fotos de tickets';
   document.getElementById('mainPanel').innerHTML = `
     <div class="empty-state" id="emptyState">
       <div class="empty-icon">🧾</div>
-      <div class="empty-text">Sube fotos de tickets (JPG, PNG, HEIC)<br>— incluso fotos con varios tickets —<br>luego presiona <strong style="color:var(--accent)">PROCESAR TICKETS</strong></div>
+      <div class="empty-text">Sube fotos de tickets<br>— incluso fotos con varios tickets —<br>luego presiona <strong style="color:var(--accent)">PROCESAR TICKETS</strong></div>
     </div>`;
   document.getElementById('bottomBar').style.display = 'none';
   document.getElementById('warnNote').style.display = 'none';
   document.getElementById('btnProcess').innerHTML = '<span>⚡</span> PROCESAR TICKETS';
   document.getElementById('btnProcess').classList.remove('running');
   document.getElementById('btnProcess').disabled = true;
-  document.getElementById('headerMeta').textContent = 'listo para procesar';
+  document.getElementById('headerMeta').textContent = 'Listo para procesar';
 }
 </script>
 </body>
