@@ -686,45 +686,35 @@ function getExifOrientation(file) {
   });
 }
 
-// Compress + auto-rotate image to natural horizontal reading position
+// Compress + rotate to landscape for best readability
+// Browsers auto-apply EXIF rotation when drawing to canvas via img element,
+// so we only need to handle portrait→landscape rotation, not EXIF correction.
 function compressImage(file, maxW=900, quality=0.55) {
   return new Promise(async (res, rej) => {
-    const orientation = await getExifOrientation(file).catch(() => 1);
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
-      // Determine if rotation needed
-      const needsRotation = [5,6,7,8].includes(orientation);
       const srcW = img.naturalWidth;
       const srcH = img.naturalHeight;
 
-      // After rotation, effective dimensions
-      const effW = needsRotation ? srcH : srcW;
-      const effH = needsRotation ? srcW : srcH;
+      // If portrait (taller than wide), rotate 90° clockwise to make landscape
+      const needsRotate = srcH > srcW;
+      const outW = needsRotate ? srcH : srcW;
+      const outH = needsRotate ? srcW : srcH;
 
-      // Force landscape: if image is taller than wide after rotation, rotate 90° more
-      const isPortrait = effH > effW;
-      const totalRotate = (() => {
-        // EXIF rotation in degrees
-        const exifDeg = { 1:0, 2:0, 3:180, 4:0, 5:90, 6:90, 7:270, 8:270 }[orientation] || 0;
-        return isPortrait ? exifDeg + 90 : exifDeg;
-      })();
-
-      const rad = totalRotate * Math.PI / 180;
-      const sin = Math.abs(Math.sin(rad));
-      const cos = Math.abs(Math.cos(rad));
-      const rotW = Math.round(srcW * cos + srcH * sin);
-      const rotH = Math.round(srcW * sin + srcH * cos);
-
-      const ratio = Math.min(1, maxW / rotW);
+      const ratio = Math.min(1, maxW / outW);
       const canvas = document.createElement('canvas');
-      canvas.width  = Math.round(rotW * ratio);
-      canvas.height = Math.round(rotH * ratio);
+      canvas.width  = Math.round(outW * ratio);
+      canvas.height = Math.round(outH * ratio);
 
       const ctx = canvas.getContext('2d');
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate(rad);
-      ctx.drawImage(img, -srcW * ratio / 2, -srcH * ratio / 2, srcW * ratio, srcH * ratio);
+      if (needsRotate) {
+        ctx.translate(canvas.width, 0);
+        ctx.rotate(Math.PI / 2);
+        ctx.drawImage(img, 0, 0, srcW * ratio, srcH * ratio);
+      } else {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      }
 
       URL.revokeObjectURL(url);
       res(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
@@ -810,30 +800,31 @@ async function processUnit(unit) {
   const fechaInicio = document.getElementById('cfgFechaInicio').value;
   const fechaFin    = document.getElementById('cfgFechaFin').value;
   const rangoStr = (fechaInicio && fechaFin)
-    ? `\nPERÍODO DE LA SEMANA: Los tickets corresponden al rango ${fechaInicio} al ${fechaFin}. Usa este rango para confirmar o corregir fechas dudosas. Si una fecha leída no cae en este rango, márcala como confident=false.`
+    ? `\nPERÍODO: Todos los tickets son de este rango exacto: ${fechaInicio} al ${fechaFin}. REGLA ESTRICTA: si la fecha que lees NO está dentro de este rango, es un error de lectura — usa la fecha más cercana dentro del rango y pon confident=false. No pongas fechas fuera de este rango bajo ninguna circunstancia.`
     : '';
 
   const prompt = `Eres un extractor de datos de tickets de volteo de arena en México (empresa G3 Volteos).
 
-ORIENTACIÓN: El ticket puede estar en cualquier orientación — derecho, volteado 180°, de lado. Lee el contenido sin importar cómo esté rotado. Busca el logo "RCA" para orientarte.${rangoStr}
+ORIENTACIÓN: El ticket puede estar en cualquier orientación. Lee sin importar la rotación. Busca el logo "RCA" para orientarte.${rangoStr}
 
-Los tickets tienen este formato:
-- FECHA: escrita a mano en formato D-M-AA sin ceros al inicio (ej: "1-4-26" = 01/04/2026, "5-5-26" = 05/05/2026, "30-4-26" = 30/04/2026). El año siempre es 2026 si ves "26". Día y mes siempre con 2 dígitos en la salida.
-- FOLIO: número impreso en rojo/naranja dentro de un recuadro gris (4 dígitos, ej: 0984, 0800)
-- CAMIÓN No. ECO: escrito a mano, siempre G-01 o G-02
-- PLACAS: VS-4578-C = G-02, VR-7129-C = G-01
+CAMPOS A EXTRAER por cada ticket visible:
 
-PUEDE HABER UNO O VARIOS tickets en la misma imagen. Extrae TODOS los que veas.
+1. FECHA: escrita a mano en formato D-M-AA sin ceros (ej: "1-4-26"=01/04/2026, "5-5-26"=05/05/2026). Año "26"=2026. Salida siempre DD/MM/YYYY.
 
-Reglas:
-- FECHA siempre en formato DD/MM/YYYY con ceros al inicio. "5-5-26" → "05/05/2026". "1-4-26" → "01/04/2026". Año "26" → "2026".
-- FOLIO: solo el número rojo/naranja impreso, no escribas a mano.
-- Si las placas son VS-4578-C el camión es G-02. Si son VR-7129-C es G-01.
-- confident=false si algún campo es dudoso o ilegible.
+2. FOLIO: número impreso en rojo/naranja en un recuadro (4 dígitos). NO confundir con números escritos a mano.
 
-Responde SOLO con JSON, sin texto extra ni bloques de código:
+3. NUMERO_ECONOMICO: Busca el campo "CAMIÓN No. ECO:" — el valor es G-01 o G-02 escrito a mano.
+   VALIDACIÓN OBLIGATORIA con PLACAS:
+   - Si ves placas "VR-7129-C" → es G-01 (aunque el escrito parezca otro)
+   - Si ves placas "VS-4578-C" → es G-02 (aunque el escrito parezca otro)
+   - Las placas tienen prioridad sobre lo escrito en ECO si hay conflicto.
+
+PUEDE HABER VARIOS tickets en una imagen. Extrae TODOS.
+
+confident=false si: fecha ilegible, folio ilegible, o no puedes ver las placas para confirmar el número económico.
+
+JSON únicamente — sin texto extra:
 {"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","confident":true}]}
-Varios tickets: {"tickets":[{...},{...}]}
 Sin tickets: {"tickets":[]}`;
 
   try {
