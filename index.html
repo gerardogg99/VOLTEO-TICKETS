@@ -238,10 +238,11 @@
             <option value="claude-haiku-4-5" selected>Haiku 4.5</option>
             <option value="claude-sonnet-4-5-20250929">Sonnet 4.5</option>
           </select>
-          <div style="font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:7px 10px;line-height:1.6">
-            🤖 <span style="color:var(--success)">Haiku 4.5</span> por defecto<br>
-            🔄 <span style="color:var(--accent)">Sonnet 4.5</span> automático si Haiku falla<br>
-            ⚠ Manual si Sonnet también falla
+          <div style="font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:7px 10px;line-height:1.8">
+            🖼️ Fotos → <span style="color:var(--success)">Haiku</span> primero<br>
+            🔄 Si falla → <span style="color:var(--accent)">Sonnet</span> automático<br>
+            📄 PDFs → <span style="color:var(--accent)">Sonnet</span> directo<br>
+            ⚠ Si Sonnet falla → revisión manual
           </div>
         </div>
         <div id="keyStatus" style="display:none;font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:5px;margin-top:4px"></div>
@@ -564,20 +565,20 @@ async function handleFiles(fileList) {
           const vp = page.getViewport({ scale: 1.0 });
           const canvas = document.createElement('canvas');
           // Resize to max 900px wide to keep base64 under 300KB
-          const maxW = 600;
+          const maxW = 1200;
           const ratio = Math.min(1, maxW / vp.width);
           canvas.width  = Math.round(vp.width  * ratio);
           canvas.height = Math.round(vp.height * ratio);
           const renderCtx = canvas.getContext('2d');
           renderCtx.scale(ratio, ratio);
           await page.render({ canvasContext: renderCtx, viewport: vp }).promise;
-          entry.pages.push(canvas.toDataURL('image/jpeg', 0.45).split(',')[1]);
+          entry.pages.push(canvas.toDataURL('image/jpeg', 0.75).split(',')[1]);
         }
         entry.previewUrl = 'data:image/jpeg;base64,' + entry.pages[0];
       } catch(e) { entry.pageCount = 0; }
     } else if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
       const url = URL.createObjectURL(f);
-      const b64 = await compressImage(f, 600, 0.45);
+      const b64 = await compressImage(f, 1200, 0.75);
       uploadedFiles.push({ file: f, type: 'image', previewUrl: url, pages: [b64], pageCount: 1 });
     }
   }
@@ -642,7 +643,7 @@ function fileToBase64(file) {
 }
 
 // Compress image to max width and JPEG quality — keeps base64 under ~300KB
-function compressImage(file, maxW=600, quality=0.45) {
+function compressImage(file, maxW=1200, quality=0.75) {
   return new Promise((res, rej) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -724,11 +725,17 @@ async function processUnit(unit, modelOverride=null) {
     ? `${unit.sourceName} p.${unit.pageIndex+1}`
     : unit.sourceName;
 
-  const model = modelOverride || 'claude-haiku-4-5';
+  // PDFs go directly to Sonnet — scanned tickets need better vision
+  // Images start with Haiku, fallback to Sonnet only if needed
+  const model = modelOverride || (unit.isPdf ? 'claude-sonnet-4-5-20250929' : 'claude-haiku-4-5');
   const isFallback = !!modelOverride;
+  const modelLabel = model.includes('sonnet') ? 'Sonnet' : 'Haiku';
 
-  if (!isFallback) addLog(log, `🔍 Analizando ${label}...`, 'info');
-  else addLog(log, `🔄 Reintentando ${label} con Sonnet...`, 'warn');
+  if (!isFallback) {
+    addLog(log, `🔍 Analizando ${label}... [${modelLabel}]`, 'info');
+  } else {
+    addLog(log, `🔄 Reintentando ${label} con Sonnet...`, 'warn');
+  }
 
   const sizeKB = Math.round(unit.b64.length * 0.75 / 1024);
   addLog(log, `📐 ${sizeKB} KB ✓`, 'info');
