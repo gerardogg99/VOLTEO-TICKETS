@@ -234,10 +234,15 @@
         </div>
         <div class="field-group">
           <label>MODELO</label>
-          <select id="cfgModel">
-            <option value="claude-haiku-4-5">Haiku 4.5 — más barato (~$0.001/imagen)</option>
-            <option value="claude-sonnet-4-5-20250929" selected>Sonnet 4.5 — mejor lectura (~$0.003/img)</option>
+          <select id="cfgModel" style="display:none">
+            <option value="claude-haiku-4-5" selected>Haiku 4.5</option>
+            <option value="claude-sonnet-4-5-20250929">Sonnet 4.5</option>
           </select>
+          <div style="font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:7px 10px;line-height:1.6">
+            🤖 <span style="color:var(--success)">Haiku 4.5</span> por defecto<br>
+            🔄 <span style="color:var(--accent)">Sonnet 4.5</span> automático si Haiku falla<br>
+            ⚠ Manual si Sonnet también falla
+          </div>
         </div>
         <div id="keyStatus" style="display:none;font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:5px;margin-top:4px"></div>
       </div>
@@ -322,9 +327,9 @@
     </div>
     <div class="bottom-bar" id="bottomBar" style="display:none;">
       <div class="week-label">Semana: <strong id="weekLabel">—</strong></div>
-      <button class="btn btn-export" id="btnExport" onclick="exportExcel()" disabled>⬇ Descargar Excel</button>
+      <button class="btn btn-export" id="btnExport" onclick="tryExport()" disabled>⬇ Descargar Excel</button>
       <button class="btn btn-clear" onclick="clearAll()">✕ Limpiar</button>
-      <div class="warn-note" id="warnNote" style="display:none;">⚠ Filas amarillas requieren revisión</div>
+      <div class="warn-note" id="warnNote" style="display:none;"></div>
     </div>
   </div>
 </div>
@@ -559,20 +564,20 @@ async function handleFiles(fileList) {
           const vp = page.getViewport({ scale: 1.0 });
           const canvas = document.createElement('canvas');
           // Resize to max 900px wide to keep base64 under 300KB
-          const maxW = 900;
+          const maxW = 600;
           const ratio = Math.min(1, maxW / vp.width);
           canvas.width  = Math.round(vp.width  * ratio);
           canvas.height = Math.round(vp.height * ratio);
           const renderCtx = canvas.getContext('2d');
           renderCtx.scale(ratio, ratio);
           await page.render({ canvasContext: renderCtx, viewport: vp }).promise;
-          entry.pages.push(canvas.toDataURL('image/jpeg', 0.55).split(',')[1]);
+          entry.pages.push(canvas.toDataURL('image/jpeg', 0.45).split(',')[1]);
         }
         entry.previewUrl = 'data:image/jpeg;base64,' + entry.pages[0];
       } catch(e) { entry.pageCount = 0; }
     } else if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
       const url = URL.createObjectURL(f);
-      const b64 = await compressImage(f, 900, 0.55);
+      const b64 = await compressImage(f, 600, 0.45);
       uploadedFiles.push({ file: f, type: 'image', previewUrl: url, pages: [b64], pageCount: 1 });
     }
   }
@@ -637,7 +642,7 @@ function fileToBase64(file) {
 }
 
 // Compress image to max width and JPEG quality — keeps base64 under ~300KB
-function compressImage(file, maxW=900, quality=0.55) {
+function compressImage(file, maxW=600, quality=0.45) {
   return new Promise((res, rej) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -684,18 +689,11 @@ async function startProcessing() {
       <div class="progress-bar-outer"><div class="progress-bar-inner" id="pbar" style="width:0%"></div></div>
       <div class="progress-log" id="plog"></div>
     </div>
-    <div class="stats-bar" id="statsBar" style="display:none">
-      <div class="stat"><div class="stat-val ok" id="sOk">0</div><div class="stat-lbl">SEGUROS</div></div>
-      <div class="stat"><div class="stat-val warn" id="sWarn">0</div><div class="stat-lbl">REVISAR</div></div>
-      <div class="stat"><div class="stat-val" id="sTotal">0</div><div class="stat-lbl">VIAJES</div></div>
-      <div class="stat"><div class="stat-val" id="sG01" style="color:#a78bfa">0</div><div class="stat-lbl">G-01</div></div>
-      <div class="stat"><div class="stat-val" id="sG02" style="color:#34d399">0</div><div class="stat-lbl">G-02</div></div>
-    </div>
     <div class="table-wrap" id="tableWrap" style="display:none">
       <table id="dataTable">
         <thead><tr>
-          <th>#</th><th>FUENTE</th><th>FECHA</th><th>FOLIO</th>
-          <th>NÚM. ECO.</th><th>PLACAS</th><th>TIRO</th><th>CONF.</th>
+          <th style="width:28px">#</th><th style="width:44px">IMG</th><th>FECHA</th><th>FOLIO</th>
+          <th>NÚM. ECO.</th><th>PLACAS</th><th>TIRO</th><th style="width:90px">CONF.</th><th style="width:60px">✓ OK</th>
         </tr></thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -709,7 +707,7 @@ async function startProcessing() {
     });
   }
 
-  const BATCH = 3;
+  const BATCH = 1;
   for (let i = 0; i < units.length; i += BATCH) {
     const batch = units.slice(i, Math.min(i + BATCH, units.length));
     await Promise.all(batch.map(u => processUnit(u)));
@@ -720,39 +718,31 @@ async function startProcessing() {
   finalize();
 }
 
-async function processUnit(unit) {
+async function processUnit(unit, modelOverride=null) {
   const log = document.getElementById('plog');
   const label = unit.isPdf
     ? `${unit.sourceName} p.${unit.pageIndex+1}`
     : unit.sourceName;
 
-  addLog(log, `🔍 Analizando ${label}...`, 'info');
+  const model = modelOverride || 'claude-haiku-4-5';
+  const isFallback = !!modelOverride;
 
-  // Show compressed size in log
+  if (!isFallback) addLog(log, `🔍 Analizando ${label}...`, 'info');
+  else addLog(log, `🔄 Reintentando ${label} con Sonnet...`, 'warn');
+
   const sizeKB = Math.round(unit.b64.length * 0.75 / 1024);
-  addLog(log, `📐 Tamaño imagen: ${sizeKB} KB ${sizeKB > 800 ? '⚠ muy grande' : '✓ ok'}`, sizeKB > 800 ? 'warn' : 'info');
+  addLog(log, `📐 ${sizeKB} KB ✓`, 'info');
 
-  const prompt = `Eres un extractor de datos de tickets de volteo de arena en México (empresa G3 Volteos).
+  const prompt = `Ticket de volteo de arena México. Puede estar rotado en cualquier ángulo.
+Extrae todos los tickets visibles. Logo "RCA" = referencia de orientación.
+Campos por ticket:
+- fecha: D-M-AA → DD/MM/YYYY (ej "1-4-26"→"01/04/2026", año 26=2026)
+- folio: número rojo/naranja impreso en recuadro (4 dígitos)
+- numero_economico: G-01 o G-02 (placas VR-7129-C=G-01, VS-4578-C=G-02)
+- confident: false si algo es ilegible
 
-ORIENTACIÓN: El ticket puede estar en cualquier orientación — derecho, volteado 180°, de lado. Lee el contenido sin importar cómo esté rotado. Busca el logo "RCA" para orientarte.
-
-Los tickets tienen este formato:
-- FECHA: escrita a mano en formato D-M-AA (ej: "1-4-26" = 01/04/2026, "29-4-26" = 29/04/2026)
-- FOLIO: número impreso en rojo/naranja dentro de un recuadro gris (4 dígitos, ej: 0984, 0800)
-- CAMIÓN No. ECO: escrito a mano, siempre G-01 o G-02
-- PLACAS: VS-4578-C = G-02, VR-7129-C = G-01
-
-PUEDE HABER UNO O VARIOS tickets en la misma imagen. Extrae TODOS los que veas.
-
-Reglas:
-- FECHA siempre en formato DD/MM/YYYY. Año "26" → 2026.
-- FOLIO: solo el número rojo/naranja impreso, no escribas a mano.
-- Si las placas son VS-4578-C el camión es G-02. Si son VR-7129-C es G-01.
-- confident=false si algún campo es dudoso o ilegible.
-
-Responde SOLO con JSON, sin texto extra ni bloques de código:
+JSON únicamente:
 {"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","confident":true}]}
-Varios tickets: {"tickets":[{...},{...}]}
 Sin tickets: {"tickets":[]}`;
 
   try {
@@ -762,8 +752,8 @@ Sin tickets: {"tickets":[]}`;
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': getKey(), 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({
-          model: getModel(),
-          max_tokens: 800,
+          model,
+          max_tokens: 300,
           messages: [{ role: 'user', content: [
             { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: unit.b64 } },
             { type: 'text', text: prompt }
@@ -771,9 +761,7 @@ Sin tickets: {"tickets":[]}`;
         })
       });
     } catch(fetchErr) {
-      // Network/CORS error — show details
-      addLog(log, `✗ ${label}: Error de red — ${fetchErr.message}. Verifica que el Worker esté activo.`, 'err');
-      console.error('Fetch error:', fetchErr);
+      addLog(log, `✗ ${label}: Error de red — ${fetchErr.message}`, 'err');
       return;
     }
 
@@ -782,6 +770,7 @@ Sin tickets: {"tickets":[]}`;
       addLog(log, `✗ ${label}: API respondió ${resp.status} — ${errText.substring(0,100)}`, 'err');
       return;
     }
+
     const data = await resp.json();
     const raw = (data.content?.[0]?.text || '{}').trim().replace(/```json|```/g,'');
     let parsed;
@@ -790,22 +779,38 @@ Sin tickets: {"tickets":[]}`;
     const tickets = Array.isArray(parsed.tickets) ? parsed.tickets : [];
 
     if (tickets.length === 0) {
-      addLog(log, `⚠ ${label}: sin tickets detectados`, 'warn');
+      if (!isFallback) {
+        // Haiku found nothing — retry with Sonnet
+        addLog(log, `⚠ Haiku no detectó tickets — reintentando con Sonnet...`, 'warn');
+        await processUnit(unit, 'claude-sonnet-4-5-20250929');
+      } else {
+        addLog(log, `⚠ ${label}: sin tickets detectados (revisión manual)`, 'warn');
+      }
       return;
     }
-
-    const multi = tickets.length > 1;
-    if (multi) addLog(log, `📦 ${label}: ${tickets.length} tickets en una imagen`, 'info');
 
     const tiro = document.getElementById('cfgTiro').value;
     const servicio = document.getElementById('cfgServicio').value;
     const capacidad = document.getElementById('cfgCapacidad').value;
     const previewUrl = unit.entry.previewUrl;
+    const multi = tickets.length > 1;
+    if (multi) addLog(log, `📦 ${label}: ${tickets.length} tickets en imagen`, 'info');
+
+    // Check if any ticket has low confidence
+    const hasLowConf = tickets.some(t => t.confident === false);
+
+    if (hasLowConf && !isFallback) {
+      // Haiku not confident — retry everything with Sonnet
+      addLog(log, `⚠ Haiku inseguro en ${label} — reintentando con Sonnet...`, 'warn');
+      await processUnit(unit, 'claude-sonnet-4-5-20250929');
+      return;
+    }
 
     tickets.forEach(t => {
       const eco = (t.numero_economico || '').trim();
       const placas = eco.toUpperCase().includes('G-01') ? 'VR-7129-C'
                    : eco.toUpperCase().includes('G-02') ? 'VS-4578-C' : '';
+      const confident = t.confident !== false;
       const row = {
         id: rowCounter++,
         previewUrl: unit.entry.type === 'pdf' ? null : previewUrl,
@@ -816,12 +821,15 @@ Sin tickets: {"tickets":[]}`;
         folio: t.folio || '',
         numero_economico: eco,
         placas, tiro, servicio, capacidad,
-        confident: t.confident !== false
+        confident,
+        usedSonnet: isFallback
       };
       rows.push(row);
       renderRow(row);
-      addLog(log, `${row.confident?'✓':'⚠'} Folio ${row.folio||'?'} | ${row.numero_economico||'?'} | ${row.fecha||'?'}`,
-        row.confident ? 'ok' : 'warn');
+      const modelTag = isFallback ? ' [Sonnet]' : ' [Haiku]';
+      addLog(log,
+        `${confident ? '✓' : '⚠'} Folio ${row.folio||'?'} | ${row.numero_economico||'?'} | ${row.fecha||'?'}${modelTag}`,
+        confident ? 'ok' : 'warn');
     });
 
   } catch(e) {
@@ -833,7 +841,6 @@ function renderRow(row) {
   const tbody = document.getElementById('tbody');
   if (!tbody) return;
   document.getElementById('tableWrap').style.display = '';
-  document.getElementById('statsBar').style.display = '';
 
   const tr = document.createElement('tr');
   tr.id = `row-${row.id}`;
@@ -844,16 +851,14 @@ function renderRow(row) {
     : `<img class="thumb" src="${row.previewUrl}" onclick="openLightbox('${row.previewUrl}')">`;
 
   const multiHtml = row.multiTicket ? `<span class="multi-badge">×multi</span>` : '';
-  const sourceClass = row.isPdf ? 'pdf-tag' : '';
-
+  const modelHtml = row.usedSonnet
+    ? `<span style="font-size:9px;color:var(--accent);font-family:var(--mono);display:block;margin-top:2px">Sonnet</span>`
+    : `<span style="font-size:9px;color:var(--muted);font-family:var(--mono);display:block;margin-top:2px">Haiku</span>`;
   const ecoColor = row.numero_economico.includes('G-01') ? '#a78bfa' : '#34d399';
 
   tr.innerHTML = `
     <td style="color:var(--muted);width:28px">${rows.length}</td>
-    <td>
-      ${thumbHtml}
-      ${multiHtml}
-    </td>
+    <td>${thumbHtml}${multiHtml}${modelHtml}</td>
     <td><input class="cell-edit" value="${row.fecha}"
       onchange="rows.find(r=>r.id==${row.id}).fecha=this.value;updateStats()"></td>
     <td><input class="cell-edit" value="${row.folio}" style="width:80px"
@@ -869,7 +874,14 @@ function renderRow(row) {
     <td><span class="tiro-tag">${row.tiro.split('/')[0].trim()}</span></td>
     <td>${row.confident
       ? '<span class="conf-badge conf-high">✓ OK</span>'
-      : '<span class="conf-badge conf-low">⚠ Revisar</span>'}</td>`;
+      : '<span class="conf-badge conf-low">⚠ Revisar</span>'}</td>
+    <td style="text-align:center">
+      ${!row.confident ? `
+        <label style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px">
+          <input type="checkbox" onchange="verifyRow(${row.id}, this.checked)"
+            style="width:15px;height:15px;cursor:pointer;accent-color:var(--success)">
+        </label>` : ''}
+    </td>`;
 
   tbody.appendChild(tr);
   updateStats();
@@ -892,18 +904,32 @@ function addLog(el, text, cls='') {
   el.scrollTop = el.scrollHeight;
 }
 
+function verifyRow(id, checked) {
+  const row = rows.find(r=>r.id===id);
+  if (!row) return;
+  const tr = document.getElementById(`row-${id}`);
+  if (checked) {
+    // Mark as verified — remove yellow, update badge
+    row.confident = true;
+    tr.classList.remove('low-conf');
+    tr.querySelector('.conf-badge').className = 'conf-badge conf-high';
+    tr.querySelector('.conf-badge').textContent = '✓ OK';
+    tr.querySelector('input[type=checkbox]').disabled = true;
+    tr.querySelector('input[type=checkbox]').parentElement.innerHTML = '<span style="color:var(--success);font-size:13px">✓</span>';
+  }
+  updateStats();
+}
+
 function updateStats() {
-  const ok   = rows.filter(r=>r.confident).length;
   const warn = rows.filter(r=>!r.confident).length;
-  const g01  = rows.filter(r=>r.numero_economico.includes('G-01')).length;
-  const g02  = rows.filter(r=>r.numero_economico.includes('G-02')).length;
-  document.getElementById('sOk').textContent = ok;
-  document.getElementById('sWarn').textContent = warn;
-  document.getElementById('sTotal').textContent = rows.length;
-  document.getElementById('sG01').textContent = g01;
-  document.getElementById('sG02').textContent = g02;
-  if (warn > 0) document.getElementById('warnNote').style.display = 'flex';
   document.getElementById('weekLabel').textContent = detectWeekLabel();
+  const warnNote = document.getElementById('warnNote');
+  if (warn > 0) {
+    warnNote.style.display = 'flex';
+    warnNote.textContent = `⚠ ${warn} fila(s) amarilla(s) — revisa antes de exportar`;
+  } else {
+    warnNote.style.display = 'none';
+  }
 }
 
 function finalize() {
@@ -913,7 +939,9 @@ function finalize() {
   btn.innerHTML = '<span>✓</span> LISTO — procesar de nuevo';
   btn.disabled = false;
   document.getElementById('btnExport').disabled = rows.length === 0;
-  document.getElementById('headerMeta').textContent = `${rows.length} tickets listos — revisa y descarga`;
+  const pending = rows.filter(r=>!r.confident).length;
+  document.getElementById('headerMeta').textContent =
+    `${rows.length} tickets listos${pending > 0 ? ` — ${pending} requieren revisión` : ' — listo para exportar'}`;
   updateStats();
 }
 
@@ -932,6 +960,23 @@ function parseDate(s) {
   const [d,m,y] = parts.map(Number);
   if (!d||!m||!y) return null;
   return new Date(y < 100 ? 2000+y : y, m-1, d);
+}
+
+function tryExport() {
+  const pending = rows.filter(r=>!r.confident).length;
+  if (pending > 0) {
+    const warnNote = document.getElementById('warnNote');
+    warnNote.style.display = 'flex';
+    warnNote.textContent = `⚠ Aún hay ${pending} fila(s) sin verificar — revísalas o dales ✓ antes de exportar`;
+    warnNote.style.color = 'var(--danger)';
+    // Flash the unverified rows
+    document.querySelectorAll('tr.low-conf').forEach(tr => {
+      tr.style.outline = '2px solid var(--danger)';
+      setTimeout(() => tr.style.outline = '', 1500);
+    });
+    return;
+  }
+  exportExcel();
 }
 
 // ── EXPORT — always generates fresh Excel with exact template format ──
