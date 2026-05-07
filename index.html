@@ -349,7 +349,7 @@
 // ── PDF.js worker ──
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-const API_URL = "https://api.anthropic.com/v1/messages";
+const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
 const GDRIVE_CLIENT_ID = ''; // Set your Google OAuth client ID here if using Drive
@@ -740,7 +740,7 @@ Sin tickets: {"tickets":[]}`;
   try {
     const resp = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': getKey(), 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-ipc': 'true' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': getKey(), 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
         model: getModel(),
         max_tokens: 800,
