@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G3 Volteos – Captura de Tickets</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #181c27;
+    --surface2: #1e2335;
+    --border: #2a3050;
+    --accent: #f0b429;
+    --accent2: #3b82f6;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --warn-bg: #2a2200;
+    --text: #e8eaf2;
+    --muted: #6b7399;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px;
+  }
+  .logo { font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: var(--accent); }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .header-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+  .app { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 56px); }
+
+  .sidebar {
+    background: var(--surface); border-right: 1px solid var(--border);
+    padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;
+    overflow-y: auto;
+  }
+  .section-label {
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.6rem;
+  }
+  .config-block { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; font-family: var(--mono); }
+  input[type=text], input[type=number], select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); border-radius: 5px; padding: 7px 10px;
+    font-family: var(--mono); font-size: 13px; outline: none; transition: border-color 0.2s;
+  }
+  input:focus, select:focus { border-color: var(--accent2); }
+  .field-group { margin-bottom: 0.75rem; }
+  .field-group:last-child { margin-bottom: 0; }
+
+  /* UPLOAD ZONE — accepts images + PDFs */
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 1.5rem 1rem; text-align: center; cursor: pointer;
+    transition: all 0.2s; background: var(--surface2); position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: #1a1800; }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .upload-icon { font-size: 1.8rem; margin-bottom: 0.4rem; }
+  .upload-text { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .upload-text strong { color: var(--accent); }
+
+  /* file type pills */
+  .type-pills { display: flex; gap: 6px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
+  .pill {
+    font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 2px 8px;
+    border-radius: 4px; border: 1px solid;
+  }
+  .pill-img { color: #60a5fa; border-color: #1e3a5f; background: #0c1a30; }
+  .pill-pdf { color: #f87171; border-color: #5f1e1e; background: #300c0c; }
+
+  /* file list */
+  .file-list { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; }
+  .file-item {
+    display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+    background: var(--bg); border-radius: 4px; font-family: var(--mono); font-size: 11px;
+  }
+  .file-item .fi-icon { font-size: 13px; }
+  .file-item .fi-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+  .file-item .fi-remove { cursor: pointer; color: var(--danger); font-size: 13px; line-height: 1; }
+  .file-item .fi-pages { color: var(--muted); font-size: 10px; }
+
+  /* excel zone */
+  .excel-zone {
+    border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem;
+    background: var(--surface2); display: flex; align-items: center; gap: 0.75rem;
+    cursor: pointer; position: relative; transition: border-color 0.2s;
+  }
+  .excel-zone:hover { border-color: var(--success); }
+  .excel-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .excel-icon { font-size: 1.4rem; }
+  .excel-info { flex: 1; min-width: 0; }
+  .excel-info .name { font-family: var(--mono); font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .excel-info .hint { font-size: 11px; color: var(--muted); }
+
+  .btn-process {
+    width: 100%; padding: 12px; border: none; border-radius: 8px;
+    background: var(--accent); color: #000; font-family: var(--mono);
+    font-size: 13px; font-weight: 600; letter-spacing: 0.05em; cursor: pointer;
+    transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: auto;
+  }
+  .btn-process:hover:not(:disabled) { background: #f5c842; transform: translateY(-1px); }
+  .btn-process:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-process.running { background: var(--accent2); color: #fff; }
+
+  .stats-bar {
+    display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; margin-bottom: 1rem;
+  }
+  .stat { flex: 1; padding: 0.6rem 0.5rem; text-align: center; background: var(--surface2); border-right: 1px solid var(--border); }
+  .stat:last-child { border-right: none; }
+  .stat-val { font-family: var(--mono); font-size: 18px; font-weight: 600; }
+  .stat-val.ok { color: var(--success); }
+  .stat-val.warn { color: var(--accent); }
+  .stat-lbl { font-size: 10px; color: var(--muted); letter-spacing: 0.04em; }
+
+  .main { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; overflow: auto; }
+
+  .progress-area { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+  .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+  .progress-title { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .progress-pct { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+  .progress-bar-outer { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar-inner { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
+  .progress-log { margin-top: 0.75rem; max-height: 100px; overflow-y: auto; }
+  .log-line { font-family: var(--mono); font-size: 11px; color: var(--muted); line-height: 1.6; }
+  .log-line.ok { color: var(--success); }
+  .log-line.warn { color: var(--accent); }
+  .log-line.err { color: var(--danger); }
+  .log-line.info { color: var(--accent2); }
+
+  .table-wrap { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 8px; min-height: 200px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead { position: sticky; top: 0; z-index: 10; }
+  thead th {
+    background: var(--surface); padding: 8px 10px; text-align: left;
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  tbody td { padding: 7px 10px; border-bottom: 1px solid #1a1f2e; font-family: var(--mono); font-size: 12px; vertical-align: middle; }
+  tbody tr:hover td { background: var(--surface2); }
+  tbody tr.low-conf td { background: var(--warn-bg) !important; border-bottom-color: #2a1f00; }
+  tbody tr.low-conf:hover td { background: #2e2600 !important; }
+
+  /* multi-ticket badge */
+  .multi-badge {
+    display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px;
+    border-radius: 3px; font-size: 9px; font-weight: 600;
+    background: #0c1a3a; color: #60a5fa; border: 1px solid #1e3a5f;
+    margin-left: 4px; vertical-align: middle;
+  }
+  .source-tag { font-size: 10px; color: var(--muted); }
+  .pdf-tag { color: #f87171; }
+
+  .conf-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+  .conf-high { background: #052e16; color: var(--success); }
+  .conf-low { background: #2a1800; color: var(--accent); border: 1px solid #5a3a00; }
+
+  .thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); transition: transform 0.15s; }
+  .thumb:hover { transform: scale(1.1); border-color: var(--accent); }
+  .pdf-thumb { width: 36px; height: 36px; background: #300c0c; border: 1px solid #5f1e1e; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+
+  .cell-edit {
+    background: transparent; border: none; border-bottom: 1px solid transparent;
+    color: var(--text); font-family: var(--mono); font-size: 12px;
+    width: 100%; outline: none; transition: border-color 0.2s;
+  }
+  .cell-edit:focus { border-bottom-color: var(--accent2); }
+  .low-conf .cell-edit { color: #f0b429; }
+
+  .tiro-tag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; background: #0c1a3a; color: #60a5fa; }
+
+  .bottom-bar {
+    display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem;
+    background: var(--surface); border-top: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .btn { padding: 8px 16px; border-radius: 6px; font-family: var(--mono); font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid; transition: all 0.15s; }
+  .btn-export { background: var(--success); color: #000; border-color: var(--success); }
+  .btn-export:hover:not(:disabled) { background: #16a34a; }
+  .btn-export:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-clear { background: transparent; color: var(--muted); border-color: var(--border); }
+  .btn-clear:hover { color: var(--danger); border-color: var(--danger); }
+  .week-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .week-label strong { color: var(--accent); }
+  .warn-note { font-size: 11px; color: var(--accent); display: flex; align-items: center; gap: 4px; margin-left: auto; }
+
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 100; display: flex; align-items: center; justify-content: center; cursor: zoom-out; }
+  .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 6px; }
+  .lightbox.hidden { display: none; }
+
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 1rem; color: var(--muted); }
+  .empty-icon { font-size: 3rem; opacity: 0.3; }
+  .empty-text { font-family: var(--mono); font-size: 13px; text-align: center; line-height: 1.8; }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">G3_VOLTEOS <span>// pipeline de tickets v2</span></div>
+  <div class="header-meta" id="headerMeta">listo para procesar</div>
+</header>
+
+<div class="app">
+  <aside class="sidebar">
+
+    <div>
+      <div class="section-label">🔑 API Key de Anthropic</div>
+      <div class="config-block">
+        <div class="field-group">
+          <label>API KEY <span style="color:var(--danger)">*</span></label>
+          <div style="position:relative">
+            <input type="password" id="cfgApiKey" placeholder="sk-ant-api03-..." oninput="onKeyInput(this)"
+              style="padding-right:36px">
+            <span onclick="toggleKeyVis()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);font-size:13px" id="eyeIcon">👁</span>
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">
+            Obtén la tuya en <span style="color:var(--accent2)">platform.anthropic.com</span><br>
+            Se guarda solo en tu navegador, nunca se sube.
+          </div>
+        </div>
+        <div class="field-group">
+          <label>MODELO</label>
+          <select id="cfgModel">
+            <option value="claude-haiku-4-5-20251001">Haiku 4.5 — más barato (~$0.001/imagen)</option>
+            <option value="claude-sonnet-4-20250514" selected>Sonnet 4 — mejor lectura (~$0.003/img)</option>
+          </select>
+        </div>
+        <div id="keyStatus" style="display:none;font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:5px;margin-top:4px"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">📊 Excel base</div>
+      <div class="excel-zone" id="excelZone">
+        <input type="file" id="excelInput" accept=".xlsx" onchange="loadExcel(this)">
+        <div class="excel-icon">📊</div>
+        <div class="excel-info">
+          <div class="name" id="excelName">Subir Conciliaciones.xlsx</div>
+          <div class="hint">Se añadirá una hoja nueva</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">⚙️ Configuración</div>
+      <div class="config-block">
+        <div class="field-group">
+          <label>PRECIO POR VIAJE ($)</label>
+          <input type="number" id="cfgPrecio" value="900" step="50">
+        </div>
+        <div class="field-group">
+          <label>TIRO PREDETERMINADO</label>
+          <select id="cfgTiro">
+            <option value="Banco El Marino / Pomoca">Banco El Marino / Pomoca</option>
+            <option value="Banco Carretas / Pomoca">Banco Carretas / Pomoca</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>SERVICIO</label>
+          <input type="text" id="cfgServicio" value="Arena">
+        </div>
+        <div class="field-group">
+          <label>CAPACIDAD</label>
+          <input type="text" id="cfgCapacidad" value="14 M3">
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">☁️ Google Drive</div>
+      <div class="config-block" style="padding:0.75rem">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5">
+          Selecciona archivos directo desde tu Drive (PDFs e imágenes)
+        </div>
+        <button onclick="openDrivePicker()" id="btnDrive"
+          style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:border-color 0.2s"
+          onmouseover="this.style.borderColor='#4285f4'" onmouseout="this.style.borderColor='var(--border)'">
+          <span style="font-size:16px">📂</span> Abrir Google Drive
+        </button>
+        <div id="driveStatus" style="font-size:10px;color:var(--muted);margin-top:6px;text-align:center"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">📁 Archivos de tickets</div>
+      <div class="upload-zone" id="dropZone">
+        <input type="file" id="fileInput" accept="image/*,.pdf" multiple onchange="handleFiles(this.files)">
+        <div class="upload-icon">🖼️</div>
+        <div class="upload-text">
+          <strong>Arrastra aquí</strong> o haz clic<br>
+          Fotos, PDFs — o arrastra una <strong>carpeta entera</strong>
+        </div>
+        <div class="type-pills">
+          <span class="pill pill-img">JPG</span>
+          <span class="pill pill-img">PNG</span>
+          <span class="pill pill-img">HEIC</span>
+          <span class="pill pill-pdf">PDF</span>
+          <span class="pill" style="color:#a78bfa;border-color:#3b2a5f;background:#1a0f30">📁 FOLDER</span>
+        </div>
+      </div>
+      <div class="file-list" id="fileList"></div>
+    </div>
+
+    <button class="btn-process" id="btnProcess" onclick="startProcessing()" disabled>
+      <span id="btnIcon">⚡</span> PROCESAR TICKETS
+    </button>
+
+  </aside>
+
+  <div style="display:flex;flex-direction:column;overflow:hidden;">
+    <div class="main" id="mainPanel">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">🧾</div>
+        <div class="empty-text">
+          Sube fotos, escaneos o PDFs de tickets<br>
+          — incluso fotos con varios tickets —<br>
+          luego presiona <strong style="color:var(--accent)">PROCESAR TICKETS</strong>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-bar" id="bottomBar" style="display:none;">
+      <div class="week-label">Semana: <strong id="weekLabel">—</strong></div>
+      <button class="btn btn-export" id="btnExport" onclick="exportExcel()" disabled>⬇ Descargar Excel</button>
+      <button class="btn btn-clear" onclick="clearAll()">✕ Limpiar</button>
+      <div class="warn-note" id="warnNote" style="display:none;">⚠ Filas amarillas requieren revisión</div>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox hidden" id="lightbox" onclick="this.classList.add('hidden')">
+  <img id="lightboxImg" src="">
+</div>
+
+<script>
+// ── PDF.js worker ──
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const API_URL = "https://api.anthropic.com/v1/messages";
+
+// Google Drive config — user fills in their own Client ID
+const GDRIVE_CLIENT_ID = ''; // Set your Google OAuth client ID here if using Drive
+const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+let gapiReady = false;
+
+// ── API KEY HELPERS ──
+function getKey() { return document.getElementById('cfgApiKey').value.trim(); }
+function getModel() { return document.getElementById('cfgModel').value; }
+
+function onKeyInput(el) {
+  const val = el.value.trim();
+  const status = document.getElementById('keyStatus');
+  localStorage.setItem('g3_api_key', val);
+  if (!val) { status.style.display='none'; return; }
+  if (val.startsWith('sk-ant-')) {
+    status.style.display='block';
+    status.style.background='#052e16'; status.style.color='var(--success)';
+    status.textContent='✓ Formato válido — lista para usar';
+  } else {
+    status.style.display='block';
+    status.style.background='#2a1800'; status.style.color='var(--accent)';
+    status.textContent='⚠ Debe empezar con sk-ant-...';
+  }
+  checkReady();
+}
+
+function toggleKeyVis() {
+  const inp = document.getElementById('cfgApiKey');
+  const eye = document.getElementById('eyeIcon');
+  if (inp.type==='password') { inp.type='text'; eye.textContent='🙈'; }
+  else { inp.type='password'; eye.textContent='👁'; }
+}
+
+// Restore saved key on load
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('g3_api_key');
+  if (saved) { document.getElementById('cfgApiKey').value = saved; onKeyInput(document.getElementById('cfgApiKey')); }
+  const gcid = localStorage.getItem('g3_gcid');
+  if (gcid) {
+    showGdriveClientIdField();
+    setTimeout(() => {
+      const el = document.getElementById('cfgGdriveClientId');
+      if (el) el.value = gcid;
+    }, 100);
+  }
+});
+
+let excelData = null;
+let excelFileName = "Conciliaciones_Semanales.xlsx";
+let uploadedFiles = []; // {file, type:'image'|'pdf', previewUrl, pages:[base64,...]}
+let rows = [];
+let processing = false;
+let rowCounter = 0;
+
+// ── DRAG & DROP — supports files AND folders ──
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', async e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  const items = [...(e.dataTransfer.items || [])];
+  // Support folder drops via FileSystemEntry API
+  const allFiles = [];
+  await Promise.all(items.map(item => {
+    if (item.webkitGetAsEntry) {
+      const entry = item.webkitGetAsEntry();
+      return entry ? collectEntries(entry, allFiles) : Promise.resolve();
+    } else {
+      const f = item.getAsFile();
+      if (f) allFiles.push(f);
+      return Promise.resolve();
+    }
+  }));
+  if (allFiles.length) handleFiles(allFiles);
+  else handleFiles(e.dataTransfer.files);
+});
+
+// Recursively collect files from folder entries
+function collectEntries(entry, collector) {
+  return new Promise(resolve => {
+    if (entry.isFile) {
+      entry.file(f => { collector.push(f); resolve(); }, resolve);
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const readAll = (entries=[]) => {
+        reader.readEntries(batch => {
+          if (!batch.length) {
+            Promise.all(entries.map(e => collectEntries(e, collector))).then(resolve);
+          } else {
+            readAll([...entries, ...batch]);
+          }
+        }, resolve);
+      };
+      readAll();
+    } else resolve();
+  });
+}
+
+// ── GOOGLE DRIVE PICKER ──
+function openDrivePicker() {
+  const status = document.getElementById('driveStatus');
+  // Load Google APIs dynamically
+  if (!document.getElementById('gapi-script')) {
+    status.textContent = 'Cargando Google API...';
+    status.style.color = 'var(--accent2)';
+    const s = document.createElement('script');
+    s.id = 'gapi-script';
+    s.src = 'https://apis.google.com/js/api.js';
+    s.onload = () => {
+      gapi.load('picker', () => { gapiReady = true; launchPicker(); });
+    };
+    document.head.appendChild(s);
+  } else if (gapiReady) {
+    launchPicker();
+  }
+}
+
+function launchPicker() {
+  const status = document.getElementById('driveStatus');
+  // Use implicit OAuth flow — no server needed
+  const clientId = document.getElementById('cfgGdriveClientId')?.value?.trim() || GDRIVE_CLIENT_ID;
+  if (!clientId) {
+    status.innerHTML = `<span style="color:var(--accent)">⚠ Necesitas configurar un Google Client ID.<br>
+      <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent2)">Obtenerlo aquí →</a></span>`;
+    showGdriveClientIdField();
+    return;
+  }
+
+  const tokenClient = google?.accounts?.oauth2?.initTokenClient({
+    client_id: clientId,
+    scope: GDRIVE_SCOPE,
+    callback: (resp) => {
+      if (resp.error) { status.textContent = 'Error de autenticación: ' + resp.error; return; }
+      buildPicker(resp.access_token);
+    }
+  });
+
+  if (tokenClient) {
+    tokenClient.requestAccessToken();
+  } else {
+    // Fallback: load GIS library
+    if (!document.getElementById('gis-script')) {
+      const s = document.createElement('script');
+      s.id = 'gis-script';
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.onload = launchPicker;
+      document.head.appendChild(s);
+    }
+  }
+}
+
+function buildPicker(accessToken) {
+  const status = document.getElementById('driveStatus');
+  status.textContent = '';
+  const picker = new google.picker.PickerBuilder()
+    .addView(new google.picker.DocsView()
+      .setIncludeFolders(false)
+      .setMimeTypes('image/jpeg,image/png,image/heic,image/webp,application/pdf'))
+    .setOAuthToken(accessToken)
+    .setTitle('Selecciona tickets (PDFs e imágenes)')
+    .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+    .setCallback(async data => {
+      if (data.action !== google.picker.Action.PICKED) return;
+      const docs = data.docs || [];
+      status.textContent = `⬇ Descargando ${docs.length} archivo(s) de Drive...`;
+      status.style.color = 'var(--accent2)';
+      const downloaded = [];
+      for (const doc of docs) {
+        try {
+          const r = await fetch(`https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media`, {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          });
+          const blob = await r.blob();
+          const file = new File([blob], doc.name, { type: doc.mimeType });
+          downloaded.push(file);
+        } catch(e) {
+          status.textContent = `Error descargando ${doc.name}`;
+        }
+      }
+      if (downloaded.length) {
+        status.textContent = `✓ ${downloaded.length} archivo(s) de Drive listos`;
+        status.style.color = 'var(--success)';
+        handleFiles(downloaded);
+      }
+    })
+    .build();
+  picker.setVisible(true);
+}
+
+function showGdriveClientIdField() {
+  const block = document.querySelector('.gdrive-clientid');
+  if (block) { block.style.display = 'block'; return; }
+  const cfg = document.getElementById('btnDrive').parentElement;
+  const div = document.createElement('div');
+  div.className = 'gdrive-clientid field-group';
+  div.style.marginTop = '8px';
+  div.innerHTML = `<label>GOOGLE CLIENT ID</label>
+    <input type="text" id="cfgGdriveClientId" placeholder="xxxx.apps.googleusercontent.com"
+      style="font-size:11px" oninput="localStorage.setItem('g3_gcid',this.value)">`;
+  cfg.appendChild(div);
+  const saved = localStorage.getItem('g3_gcid');
+  if (saved) document.getElementById('cfgGdriveClientId').value = saved;
+}
+
+async function handleFiles(fileList) {
+  const newFiles = [...fileList];
+  for (const f of newFiles) {
+    if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
+      const entry = { file: f, type: 'pdf', previewUrl: null, pages: [], pageCount: 0 };
+      uploadedFiles.push(entry);
+      // render PDF pages to images via canvas
+      try {
+        const ab = await f.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+        entry.pageCount = pdf.numPages;
+        for (let p = 1; p <= pdf.numPages; p++) {
+          const page = await pdf.getPage(p);
+          const vp = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement('canvas');
+          canvas.width = vp.width; canvas.height = vp.height;
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+          entry.pages.push(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
+        }
+        entry.previewUrl = 'data:image/jpeg;base64,' + entry.pages[0];
+      } catch(e) { entry.pageCount = 0; }
+    } else if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
+      const url = URL.createObjectURL(f);
+      const b64 = await fileToBase64(f);
+      uploadedFiles.push({ file: f, type: 'image', previewUrl: url, pages: [b64], pageCount: 1 });
+    }
+  }
+  renderFileList();
+  checkReady();
+}
+
+function renderFileList() {
+  const el = document.getElementById('fileList');
+  el.innerHTML = '';
+  uploadedFiles.forEach((entry, idx) => {
+    const div = document.createElement('div');
+    div.className = 'file-item';
+    const icon = entry.type === 'pdf' ? '📄' : '🖼️';
+    const extra = entry.type === 'pdf' ? `<span class="fi-pages">${entry.pageCount}p</span>` : '';
+    div.innerHTML = `<span class="fi-icon">${icon}</span>
+      <span class="fi-name">${entry.file.name}</span>
+      ${extra}
+      <span class="fi-remove" onclick="removeFile(${idx})">✕</span>`;
+    el.appendChild(div);
+  });
+  const total = uploadedFiles.reduce((s,e)=>s+e.pages.length,0);
+  if (total > 0) {
+    document.querySelector('.upload-text').innerHTML =
+      `<strong style="color:var(--success)">${uploadedFiles.length} archivo(s)</strong> — ${total} imagen(es) total`;
+  }
+}
+
+function removeFile(idx) {
+  uploadedFiles.splice(idx, 1);
+  renderFileList();
+  checkReady();
+}
+
+function loadExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  excelFileName = file.name;
+  document.getElementById('excelName').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = e => { excelData = e.target.result; };
+  reader.readAsArrayBuffer(file);
+  checkReady();
+}
+
+function checkReady() {
+  const hasKey = getKey().startsWith('sk-ant-');
+  const hasFiles = uploadedFiles.length > 0;
+  document.getElementById('btnProcess').disabled = !(hasKey && hasFiles);
+  if (!hasKey && hasFiles) {
+    document.getElementById('btnProcess').title = 'Necesitas ingresar tu API key primero';
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// ── MAIN PROCESSING ──
+async function startProcessing() {
+  if (processing || uploadedFiles.length === 0) return;
+  if (!getKey().startsWith('sk-ant-')) {
+    alert('Por favor ingresa tu API key de Anthropic antes de procesar.');
+    document.getElementById('cfgApiKey').focus();
+    return;
+  }
+  processing = true; rows = []; rowCounter = 0;
+
+  const btn = document.getElementById('btnProcess');
+  btn.disabled = true; btn.classList.add('running');
+  btn.innerHTML = '<span>⏳</span> PROCESANDO...';
+
+  document.getElementById('emptyState') && (document.getElementById('emptyState').style.display = 'none');
+  document.getElementById('bottomBar').style.display = 'flex';
+  document.getElementById('btnExport').disabled = true;
+
+  const main = document.getElementById('mainPanel');
+  main.innerHTML = `
+    <div class="progress-area" id="progressArea">
+      <div class="progress-header">
+        <span class="progress-title" id="progressTitle">Preparando...</span>
+        <span class="progress-pct" id="pct">0%</span>
+      </div>
+      <div class="progress-bar-outer"><div class="progress-bar-inner" id="pbar" style="width:0%"></div></div>
+      <div class="progress-log" id="plog"></div>
+    </div>
+    <div class="stats-bar" id="statsBar" style="display:none">
+      <div class="stat"><div class="stat-val ok" id="sOk">0</div><div class="stat-lbl">SEGUROS</div></div>
+      <div class="stat"><div class="stat-val warn" id="sWarn">0</div><div class="stat-lbl">REVISAR</div></div>
+      <div class="stat"><div class="stat-val" id="sTotal">0</div><div class="stat-lbl">VIAJES</div></div>
+      <div class="stat"><div class="stat-val" id="sG01" style="color:#a78bfa">0</div><div class="stat-lbl">G-01</div></div>
+      <div class="stat"><div class="stat-val" id="sG02" style="color:#34d399">0</div><div class="stat-lbl">G-02</div></div>
+    </div>
+    <div class="table-wrap" id="tableWrap" style="display:none">
+      <table id="dataTable">
+        <thead><tr>
+          <th>#</th><th>FUENTE</th><th>FECHA</th><th>FOLIO</th>
+          <th>NÚM. ECO.</th><th>PLACAS</th><th>TIRO</th><th>CONF.</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>`;
+
+  // Build work units: one per image/page
+  const units = [];
+  for (const entry of uploadedFiles) {
+    entry.pages.forEach((b64, pi) => {
+      units.push({ entry, b64, pageIndex: pi, sourceName: entry.file.name, isPdf: entry.type === 'pdf' });
+    });
+  }
+
+  const BATCH = 3;
+  for (let i = 0; i < units.length; i += BATCH) {
+    const batch = units.slice(i, Math.min(i + BATCH, units.length));
+    await Promise.all(batch.map(u => processUnit(u)));
+    setProgress(Math.min(i + BATCH, units.length), units.length,
+      `Procesando imagen ${Math.min(i+BATCH, units.length)} de ${units.length}...`);
+  }
+
+  finalize();
+}
+
+async function processUnit(unit) {
+  const log = document.getElementById('plog');
+  const label = unit.isPdf
+    ? `${unit.sourceName} p.${unit.pageIndex+1}`
+    : unit.sourceName;
+
+  addLog(log, `🔍 Analizando ${label}...`, 'info');
+
+  const prompt = `Eres un extractor de datos de tickets de volteo de arena en México (empresa G3 Volteos).
+
+ORIENTACIÓN: El ticket puede estar en cualquier orientación — derecho, volteado 180°, de lado. Lee el contenido sin importar cómo esté rotado. Busca el logo "RCA" para orientarte.
+
+Los tickets tienen este formato:
+- FECHA: escrita a mano en formato D-M-AA (ej: "1-4-26" = 01/04/2026, "29-4-26" = 29/04/2026)
+- FOLIO: número impreso en rojo/naranja dentro de un recuadro gris (4 dígitos, ej: 0984, 0800)
+- CAMIÓN No. ECO: escrito a mano, siempre G-01 o G-02
+- PLACAS: VS-4578-C = G-02, VR-7129-C = G-01
+
+PUEDE HABER UNO O VARIOS tickets en la misma imagen. Extrae TODOS los que veas.
+
+Reglas:
+- FECHA siempre en formato DD/MM/YYYY. Año "26" → 2026.
+- FOLIO: solo el número rojo/naranja impreso, no escribas a mano.
+- Si las placas son VS-4578-C el camión es G-02. Si son VR-7129-C es G-01.
+- confident=false si algún campo es dudoso o ilegible.
+
+Responde SOLO con JSON, sin texto extra ni bloques de código:
+{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","confident":true}]}
+Varios tickets: {"tickets":[{...},{...}]}
+Sin tickets: {"tickets":[]}`;
+
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': getKey(), 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-ipc': 'true' },
+      body: JSON.stringify({
+        model: getModel(),
+        max_tokens: 800,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: unit.b64 } },
+          { type: 'text', text: prompt }
+        ]}]
+      })
+    });
+
+    const data = await resp.json();
+    const raw = (data.content?.[0]?.text || '{}').trim().replace(/```json|```/g,'');
+    let parsed;
+    try { parsed = JSON.parse(raw); } catch { parsed = { tickets: [] }; }
+
+    const tickets = Array.isArray(parsed.tickets) ? parsed.tickets : [];
+
+    if (tickets.length === 0) {
+      addLog(log, `⚠ ${label}: sin tickets detectados`, 'warn');
+      return;
+    }
+
+    const multi = tickets.length > 1;
+    if (multi) addLog(log, `📦 ${label}: ${tickets.length} tickets en una imagen`, 'info');
+
+    const tiro = document.getElementById('cfgTiro').value;
+    const servicio = document.getElementById('cfgServicio').value;
+    const capacidad = document.getElementById('cfgCapacidad').value;
+    const previewUrl = unit.entry.previewUrl;
+
+    tickets.forEach(t => {
+      const eco = (t.numero_economico || '').trim();
+      const placas = eco.toUpperCase().includes('G-01') ? 'VR-7129-C'
+                   : eco.toUpperCase().includes('G-02') ? 'VS-4578-C' : '';
+      const row = {
+        id: rowCounter++,
+        previewUrl: unit.entry.type === 'pdf' ? null : previewUrl,
+        isPdf: unit.isPdf,
+        sourceName: label,
+        multiTicket: multi,
+        fecha: t.fecha || '',
+        folio: t.folio || '',
+        numero_economico: eco,
+        placas, tiro, servicio, capacidad,
+        confident: t.confident !== false
+      };
+      rows.push(row);
+      renderRow(row);
+      addLog(log, `${row.confident?'✓':'⚠'} Folio ${row.folio||'?'} | ${row.numero_economico||'?'} | ${row.fecha||'?'}`,
+        row.confident ? 'ok' : 'warn');
+    });
+
+  } catch(e) {
+    addLog(log, `✗ Error en ${label}: ${e.message}`, 'err');
+  }
+}
+
+function renderRow(row) {
+  const tbody = document.getElementById('tbody');
+  if (!tbody) return;
+  document.getElementById('tableWrap').style.display = '';
+  document.getElementById('statsBar').style.display = '';
+
+  const tr = document.createElement('tr');
+  tr.id = `row-${row.id}`;
+  if (!row.confident) tr.classList.add('low-conf');
+
+  const thumbHtml = row.isPdf
+    ? `<div class="pdf-thumb">📄</div>`
+    : `<img class="thumb" src="${row.previewUrl}" onclick="openLightbox('${row.previewUrl}')">`;
+
+  const multiHtml = row.multiTicket ? `<span class="multi-badge">×multi</span>` : '';
+  const sourceClass = row.isPdf ? 'pdf-tag' : '';
+
+  const ecoColor = row.numero_economico.includes('G-01') ? '#a78bfa' : '#34d399';
+
+  tr.innerHTML = `
+    <td style="color:var(--muted);width:28px">${rows.length}</td>
+    <td>
+      ${thumbHtml}
+      ${multiHtml}
+    </td>
+    <td><input class="cell-edit" value="${row.fecha}"
+      onchange="rows.find(r=>r.id==${row.id}).fecha=this.value;updateStats()"></td>
+    <td><input class="cell-edit" value="${row.folio}" style="width:80px"
+      onchange="rows.find(r=>r.id==${row.id}).folio=this.value"></td>
+    <td>
+      <select style="background:var(--bg);border:none;border-bottom:1px solid transparent;color:${ecoColor};font-family:var(--mono);font-size:12px;outline:none;"
+        onchange="const r=rows.find(x=>x.id==${row.id});r.numero_economico=this.value;r.placas=this.value==='G-01'?'VR-7129-C':'VS-4578-C';this.closest('tr').querySelector('.placa-cell').textContent=r.placas;updateStats()">
+        <option ${row.numero_economico.includes('G-01')?'selected':''}>G-01</option>
+        <option ${row.numero_economico.includes('G-02')?'selected':''}>G-02</option>
+      </select>
+    </td>
+    <td class="placa-cell" style="color:var(--muted);font-size:11px">${row.placas}</td>
+    <td><span class="tiro-tag">${row.tiro.split('/')[0].trim()}</span></td>
+    <td>${row.confident
+      ? '<span class="conf-badge conf-high">✓ OK</span>'
+      : '<span class="conf-badge conf-low">⚠ Revisar</span>'}</td>`;
+
+  tbody.appendChild(tr);
+  updateStats();
+}
+
+function setProgress(done, total, title='') {
+  const pct = Math.round(done/total*100);
+  document.getElementById('pct').textContent = pct+'%';
+  document.getElementById('pbar').style.width = pct+'%';
+  if (title) document.getElementById('progressTitle').textContent = title;
+  document.getElementById('headerMeta').textContent = `${done}/${total} imágenes procesadas`;
+}
+
+function addLog(el, text, cls='') {
+  if (!el) return;
+  const d = document.createElement('div');
+  d.className = 'log-line ' + cls;
+  d.textContent = text;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+function updateStats() {
+  const ok   = rows.filter(r=>r.confident).length;
+  const warn = rows.filter(r=>!r.confident).length;
+  const g01  = rows.filter(r=>r.numero_economico.includes('G-01')).length;
+  const g02  = rows.filter(r=>r.numero_economico.includes('G-02')).length;
+  document.getElementById('sOk').textContent = ok;
+  document.getElementById('sWarn').textContent = warn;
+  document.getElementById('sTotal').textContent = rows.length;
+  document.getElementById('sG01').textContent = g01;
+  document.getElementById('sG02').textContent = g02;
+  if (warn > 0) document.getElementById('warnNote').style.display = 'flex';
+  document.getElementById('weekLabel').textContent = detectWeekLabel();
+}
+
+function finalize() {
+  processing = false;
+  const btn = document.getElementById('btnProcess');
+  btn.classList.remove('running');
+  btn.innerHTML = '<span>✓</span> LISTO — procesar de nuevo';
+  btn.disabled = false;
+  document.getElementById('btnExport').disabled = rows.length === 0;
+  document.getElementById('headerMeta').textContent = `${rows.length} tickets listos — revisa y descarga`;
+  updateStats();
+}
+
+// ── WEEK LABEL ──
+function detectWeekLabel() {
+  const dates = rows.map(r=>parseDate(r.fecha)).filter(Boolean).sort((a,b)=>a-b);
+  if (!dates.length) return '—';
+  const fmt = d=>`${d.getDate()} ${['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][d.getMonth()]}`;
+  return `${fmt(dates[0])} – ${fmt(dates[dates.length-1])}`;
+}
+
+function parseDate(s) {
+  if (!s) return null;
+  const parts = s.split(/[\/\-]/);
+  if (parts.length < 3) return null;
+  const [d,m,y] = parts.map(Number);
+  if (!d||!m||!y) return null;
+  return new Date(y < 100 ? 2000+y : y, m-1, d);
+}
+
+// ── EXPORT ──
+async function exportExcel() {
+  let wb;
+  if (excelData) {
+    wb = XLSX.read(excelData, { type: 'array', cellStyles: true });
+  } else {
+    wb = XLSX.utils.book_new();
+  }
+
+  const sorted = [...rows].sort((a,b)=>{
+    const da=parseDate(a.fecha), db=parseDate(b.fecha);
+    if (da&&db&&da-db!==0) return da-db;
+    return parseInt(a.folio||0)-parseInt(b.folio||0);
+  });
+
+  const precio = parseFloat(document.getElementById('cfgPrecio').value) || 900;
+  const total = sorted.length;
+  const weekLabel = detectWeekLabel();
+
+  const sheetData = [
+    [],
+    [`CONCILIACIÓN DE VIAJES SEMANA ${weekLabel.toUpperCase()} DEL ${new Date().getFullYear()}`],
+    [],
+    ['','No.','Fecha','Folio','Número Económico','Placas','Capacidad M3','Servicio','Tiro']
+  ];
+
+  sorted.forEach((row,i)=>{
+    const d = parseDate(row.fecha);
+    sheetData.push(['', i+1, d||row.fecha, row.folio?parseInt(row.folio)||row.folio:'',
+      row.numero_economico, row.placas, row.capacidad, row.servicio, row.tiro]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+  const sumR = 4;
+  XLSX.utils.sheet_add_aoa(ws, [
+    ['','','TOTAL DE VIAJES DEL BANCO EL MARINO','',total],
+    ['','','PRECIO POR VIAJE','',precio],
+    [],
+    ['','','','SUBTOTAL',{f:`M${sumR+1}*M${sumR+2}`}],
+    ['','','','IVA',{f:`M${sumR+4}*0.16`}],
+    ['','','','IVA RETENIDO',{f:`M${sumR+4}*-0.04`}],
+    ['','','','ISR RETENIDO',{f:`M${sumR+4}*-0.0125`}],
+    ['','','','TOTAL',{f:`M${sumR+4}+M${sumR+5}+M${sumR+6}+M${sumR+7}`}],
+  ], { origin: { r: sumR, c: 10 } });
+
+  // Yellow fill for low-confidence rows
+  const yellowFill = { patternType:'solid', fgColor:{ rgb:'FFFF00' } };
+  sorted.forEach((row,i)=>{
+    if (!row.confident) {
+      const exR = i+5;
+      ['B','C','D','E','F','G','H','I'].forEach(col=>{
+        const ref = col+exR;
+        if (!ws[ref]) ws[ref]={ v:'', t:'s' };
+        ws[ref].s = { fill: yellowFill };
+      });
+    }
+  });
+
+  ws['!cols'] = [{wch:2},{wch:5},{wch:12},{wch:8},{wch:16},{wch:12},{wch:12},{wch:10},{wch:25},{wch:2},{wch:2},{wch:25},{wch:15}];
+
+  sorted.forEach((row,i)=>{
+    const ref = 'C'+(i+5);
+    const d = parseDate(row.fecha);
+    if (ws[ref]&&d) { ws[ref].t='d'; ws[ref].v=d; ws[ref].z='DD/MM/YYYY'; }
+  });
+
+  ws['!ref'] = `A1:M${sorted.length+12}`;
+
+  const sheetName = weekLabel.replace(/[\\/*?:[\]]/g,'-').substring(0,31)||'Semana';
+  const ei = wb.SheetNames.indexOf(sheetName);
+  if (ei!==-1) { wb.SheetNames.splice(ei,1); delete wb.Sheets[sheetName]; }
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, excelFileName.replace('.xlsx','')+'_actualizado.xlsx', { cellStyles:true, bookType:'xlsx' });
+}
+
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.remove('hidden');
+}
+
+function clearAll() {
+  uploadedFiles = []; rows = []; rowCounter = 0; excelData = null;
+  document.getElementById('excelName').textContent = 'Subir Conciliaciones.xlsx';
+  document.getElementById('fileList').innerHTML = '';
+  document.querySelector('.upload-text').innerHTML =
+    '<strong>Arrastra aquí</strong> o haz clic<br>Fotos, escaneos y PDFs';
+  document.getElementById('mainPanel').innerHTML = `
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🧾</div>
+      <div class="empty-text">Sube fotos, escaneos o PDFs de tickets<br>— incluso fotos con varios tickets —<br>luego presiona <strong style="color:var(--accent)">PROCESAR TICKETS</strong></div>
+    </div>`;
+  document.getElementById('bottomBar').style.display = 'none';
+  document.getElementById('warnNote').style.display = 'none';
+  document.getElementById('btnProcess').innerHTML = '<span>⚡</span> PROCESAR TICKETS';
+  document.getElementById('btnProcess').classList.remove('running');
+  document.getElementById('btnProcess').disabled = true;
+  document.getElementById('headerMeta').textContent = 'listo para procesar';
+}
+</script>
+</body>
+</html>
