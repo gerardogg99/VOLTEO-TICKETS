@@ -6,7 +6,6 @@
 <title>G3 Volteos – Captura de Tickets</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root {
     --bg: #0f1117;
@@ -38,28 +37,28 @@
 
   .sidebar {
     background: var(--surface); border-right: 1px solid var(--border);
-    padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;
+    padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem;
     overflow-y: auto;
   }
   .section-label {
-    font-family: var(--mono); font-size: 10px; font-weight: 600;
-    letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.6rem;
+    font-family: var(--mono); font-size: 9px; font-weight: 600;
+    letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.4rem;
   }
-  .config-block { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
-  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; font-family: var(--mono); }
+  .config-block { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; }
+  label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 3px; font-family: var(--mono); }
   input[type=text], input[type=number], select {
     width: 100%; background: var(--bg); border: 1px solid var(--border);
-    color: var(--text); border-radius: 5px; padding: 7px 10px;
-    font-family: var(--mono); font-size: 13px; outline: none; transition: border-color 0.2s;
+    color: var(--text); border-radius: 5px; padding: 5px 8px;
+    font-family: var(--mono); font-size: 12px; outline: none; transition: border-color 0.2s;
   }
   input:focus, select:focus { border-color: var(--accent2); }
-  .field-group { margin-bottom: 0.75rem; }
+  .field-group { margin-bottom: 0.5rem; }
   .field-group:last-child { margin-bottom: 0; }
 
   /* UPLOAD ZONE — accepts images + PDFs */
   .upload-zone {
     border: 2px dashed var(--border); border-radius: 10px;
-    padding: 1.5rem 1rem; text-align: center; cursor: pointer;
+    padding: 1rem; text-align: center; cursor: pointer;
     transition: all 0.2s; background: var(--surface2); position: relative;
   }
   .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: #1a1800; }
@@ -210,41 +209,27 @@
 <body>
 
 <header>
-  <div class="logo">G3_VOLTEOS <span>// pipeline de tickets v2</span></div>
-  <div class="header-meta" id="headerMeta">listo para procesar</div>
+  <div class="logo">G3 VOLTEOS <span>// Conciliador de Tickets</span></div>
+  <div class="header-meta" id="headerMeta">Listo para procesar</div>
 </header>
 
 <div class="app">
   <aside class="sidebar">
 
     <div>
-      <div class="section-label">🔑 API Key de Anthropic</div>
+      <div class="section-label">🔑 API Key</div>
       <div class="config-block">
         <div class="field-group">
-          <label>API KEY <span style="color:var(--danger)">*</span></label>
           <div style="position:relative">
             <input type="password" id="cfgApiKey" placeholder="sk-ant-api03-..." oninput="onKeyInput(this)"
               style="padding-right:36px">
             <span onclick="toggleKeyVis()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);font-size:13px" id="eyeIcon">👁</span>
           </div>
-          <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">
-            Obtén la tuya en <span style="color:var(--accent2)">platform.anthropic.com</span><br>
-            Se guarda solo en tu navegador, nunca se sube.
-          </div>
         </div>
-        <div class="field-group">
-          <label>MODELO</label>
-          <select id="cfgModel" style="display:none">
-            <option value="claude-haiku-4-5" selected>Haiku 4.5</option>
-            <option value="claude-sonnet-4-5-20250929">Sonnet 4.5</option>
-          </select>
-          <div style="font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:7px 10px;line-height:1.8">
-            🤖 Siempre usa <span style="color:var(--accent)">Sonnet 4.5</span><br>
-            📷 Solo fotos JPG/PNG/HEIC<br>
-            ⚠ Amarillo = revisión manual
-          </div>
-        </div>
-        <div id="keyStatus" style="display:none;font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:5px;margin-top:4px"></div>
+        <select id="cfgModel" style="display:none">
+          <option value="claude-sonnet-4-5-20250929" selected>Sonnet 4.5</option>
+        </select>
+        <div id="keyStatus" style="display:none;font-family:var(--mono);font-size:11px;padding:5px 8px;border-radius:5px"></div>
       </div>
     </div>
 
@@ -256,7 +241,7 @@
           <input type="number" id="cfgPrecio" value="900" step="50">
         </div>
         <div class="field-group">
-          <label>TIRO PREDETERMINADO</label>
+          <label>TIRO</label>
           <select id="cfgTiro">
             <option value="Banco El Marino / Pomoca">Banco El Marino / Pomoca</option>
             <option value="Banco Carretas / Pomoca">Banco Carretas / Pomoca</option>
@@ -275,33 +260,22 @@
 
     <div>
       <div class="section-label">☁️ Google Drive</div>
-      <div class="config-block" style="padding:0.75rem">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5">
-          Selecciona archivos directo desde tu Drive (PDFs e imágenes)
-        </div>
-        <button onclick="openDrivePicker()" id="btnDrive"
-          style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:border-color 0.2s"
-          onmouseover="this.style.borderColor='#4285f4'" onmouseout="this.style.borderColor='var(--border)'">
-          <span style="font-size:16px">📂</span> Abrir Google Drive
-        </button>
-        <div id="driveStatus" style="font-size:10px;color:var(--muted);margin-top:6px;text-align:center"></div>
-      </div>
+      <button onclick="openDrivePicker()" id="btnDrive"
+        style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:border-color 0.2s"
+        onmouseover="this.style.borderColor='#4285f4'" onmouseout="this.style.borderColor='var(--border)'">
+        <span style="font-size:15px">📂</span> Abrir Google Drive
+      </button>
+      <div id="driveStatus" style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center"></div>
     </div>
 
     <div>
-      <div class="section-label">📁 Archivos de tickets</div>
+      <div class="section-label">📷 Fotos de tickets</div>
       <div class="upload-zone" id="dropZone">
         <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this.files)">
-        <div class="upload-icon">📷</div>
+        <div class="upload-icon" style="font-size:1.4rem;margin-bottom:0.25rem">📷</div>
         <div class="upload-text">
           <strong>Arrastra aquí</strong> o haz clic<br>
-          Fotos de tickets — o arrastra una <strong>carpeta entera</strong>
-        </div>
-        <div class="type-pills">
-          <span class="pill pill-img">JPG</span>
-          <span class="pill pill-img">PNG</span>
-          <span class="pill pill-img">HEIC</span>
-          <span class="pill" style="color:#a78bfa;border-color:#3b2a5f;background:#1a0f30">📁 FOLDER</span>
+          JPG · PNG · HEIC · Carpeta
         </div>
       </div>
       <div class="file-list" id="fileList"></div>
@@ -318,7 +292,7 @@
       <div class="empty-state" id="emptyState">
         <div class="empty-icon">🧾</div>
         <div class="empty-text">
-          Sube fotos, escaneos o PDFs de tickets<br>
+          Sube fotos de tickets (JPG, PNG, HEIC)<br>
           — incluso fotos con varios tickets —<br>
           luego presiona <strong style="color:var(--accent)">PROCESAR TICKETS</strong>
         </div>
@@ -338,13 +312,10 @@
 </div>
 
 <script>
-// ── PDF.js worker ──
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
-// Google Drive config — user fills in their own Client ID
-const GDRIVE_CLIENT_ID = ''; // Set your Google OAuth client ID here if using Drive
+// Google Drive config
+const GDRIVE_CLIENT_ID = '';
 const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 let gapiReady = false;
 
@@ -390,9 +361,7 @@ window.addEventListener('load', () => {
   }
 });
 
-let excelData = null;
-let excelFileName = "Conciliaciones_Semanales.xlsx";
-let uploadedFiles = []; // {file, type:'image'|'pdf', previewUrl, pages:[base64,...]}
+let uploadedFiles = [];
 let rows = [];
 let processing = false;
 let rowCounter = 0;
@@ -594,16 +563,6 @@ function removeFile(idx) {
   checkReady();
 }
 
-function loadExcel(input) {
-  const file = input.files[0];
-  if (!file) return;
-  excelFileName = file.name;
-  document.getElementById('excelName').textContent = file.name;
-  const reader = new FileReader();
-  reader.onload = e => { excelData = e.target.result; };
-  reader.readAsArrayBuffer(file);
-  checkReady();
-}
 
 function checkReady() {
   const hasKey = getKey().startsWith('sk-ant-');
@@ -1051,15 +1010,14 @@ function openLightbox(src) {
 }
 
 function clearAll() {
-  uploadedFiles = []; rows = []; rowCounter = 0; excelData = null;
-  document.getElementById('excelName').textContent = 'Subir Conciliaciones.xlsx';
+  uploadedFiles = []; rows = []; rowCounter = 0;
   document.getElementById('fileList').innerHTML = '';
   document.querySelector('.upload-text').innerHTML =
-    '<strong>Arrastra aquí</strong> o haz clic<br>Fotos, escaneos y PDFs';
+    '<strong>Arrastra aquí</strong> o haz clic<br>Fotos de tickets — o arrastra una <strong>carpeta entera</strong>';
   document.getElementById('mainPanel').innerHTML = `
     <div class="empty-state" id="emptyState">
       <div class="empty-icon">🧾</div>
-      <div class="empty-text">Sube fotos, escaneos o PDFs de tickets<br>— incluso fotos con varios tickets —<br>luego presiona <strong style="color:var(--accent)">PROCESAR TICKETS</strong></div>
+      <div class="empty-text">Sube fotos de tickets (JPG, PNG, HEIC)<br>— incluso fotos con varios tickets —<br>luego presiona <strong style="color:var(--accent)">PROCESAR TICKETS</strong></div>
     </div>`;
   document.getElementById('bottomBar').style.display = 'none';
   document.getElementById('warnNote').style.display = 'none';
