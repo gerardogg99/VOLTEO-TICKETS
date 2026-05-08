@@ -168,6 +168,13 @@
   .conf-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; }
   .conf-high { background: #052e16; color: var(--success); }
   .conf-low { background: #2a1800; color: var(--accent); border: 1px solid #5a3a00; }
+  .review-row-btn {
+    display: inline-flex; align-items: center; gap: 3px; margin-left: 5px;
+    padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    cursor: pointer; transition: all 0.15s; font-family: var(--mono);
+  }
+  .review-row-btn:hover { border-color: var(--accent2); color: var(--accent2); }
 
   .thumb-wrap { width: 64px; height: 44px; overflow: hidden; border-radius: 4px; border: 1px solid var(--border); flex-shrink: 0; position: relative; }
   .thumb { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
@@ -200,9 +207,46 @@
   .week-label strong { color: var(--accent); }
   .warn-note { font-size: 11px; color: var(--accent); display: flex; align-items: center; gap: 4px; margin-left: auto; }
 
-  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 100; display: flex; align-items: center; justify-content: center; cursor: zoom-out; }
-  .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 6px; object-fit: contain; }
-  .lightbox.hidden { display: none; }
+  /* ── Lightbox / zoom viewer ── */
+  .lb-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.94);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    touch-action: none;
+  }
+  .lb-overlay.hidden { display: none; }
+  .lb-close {
+    position: absolute; top: 16px; right: 20px;
+    background: rgba(255,255,255,0.1); border: none; color: #fff;
+    font-size: 22px; line-height: 1; width: 36px; height: 36px;
+    border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .lb-close:hover { background: rgba(255,255,255,0.25); }
+  .lb-img-wrap {
+    overflow: hidden; display: flex; align-items: center; justify-content: center;
+    width: 94vw; height: 90vh; position: relative;
+  }
+  .lb-img-wrap img {
+    max-width: 100%; max-height: 100%; object-fit: contain;
+    transform-origin: center center;
+    transition: transform 0.15s ease;
+    user-select: none; pointer-events: none;
+  }
+  .lb-controls {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px;
+  }
+  .lb-btn {
+    background: rgba(255,255,255,0.15); border: none; color: #fff;
+    font-size: 18px; padding: 6px 14px; border-radius: 6px; cursor: pointer;
+  }
+  .lb-btn:hover { background: rgba(255,255,255,0.3); }
+  .lb-rotate-hint {
+    position: absolute; bottom: 56px; left: 50%; transform: translateX(-50%);
+    font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,0.4);
+    white-space: nowrap;
+  }
 
   .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 1rem; color: var(--muted); }
   .empty-icon { font-size: 3rem; opacity: 0.3; }
@@ -378,11 +422,11 @@
 <div class="review-modal hidden" id="reviewModal">
   <div class="review-box">
     <div class="review-header">
-      <span class="review-title">⚠ REVISAR TICKET</span>
+      <span class="review-title" id="reviewTitle">🔍 REVISAR TICKET</span>
       <span class="review-counter" id="reviewCounter"></span>
     </div>
     <div class="review-img-wrap">
-      <img id="reviewImg" src="" onclick="openLightbox(this.src)">
+      <img id="reviewImg" src="" onclick="openLightbox(this.src)" style="cursor:zoom-in">
     </div>
     <div class="review-fields">
       <div class="review-field">
@@ -416,12 +460,24 @@
   </div>
 </div>
 
-<div class="lightbox hidden" id="lightbox" onclick="this.classList.add('hidden')">
-  <img id="lightboxImg" src="">
+<!-- ── Zoom viewer ── -->
+<div class="lb-overlay hidden" id="lbOverlay">
+  <button class="lb-close" id="lbClose">✕</button>
+  <div class="lb-img-wrap" id="lbImgWrap">
+    <img id="lbImg" src="" draggable="false">
+  </div>
+  <div class="lb-rotate-hint">Scroll / pellizca para zoom · ↺↻ para rotar</div>
+  <div class="lb-controls">
+    <button class="lb-btn" id="lbRotL">↺</button>
+    <button class="lb-btn" id="lbZoomOut">−</button>
+    <button class="lb-btn" id="lbZoomReset">1:1</button>
+    <button class="lb-btn" id="lbZoomIn">+</button>
+    <button class="lb-btn" id="lbRotR">↻</button>
+  </div>
 </div>
 
 <script>
-const APP_VERSION = 'v10';
+const APP_VERSION = 'v01';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
@@ -1072,11 +1128,18 @@ function renderRow(row) {
   const tiroTd = document.createElement('td');
   tiroTd.innerHTML = `<span class="tiro-tag">${row.tiro.split('/')[0].trim()}</span>`;
 
-  // ── Confidence cell ──
+  // ── Confidence cell + manual review button ──
   const confTd = document.createElement('td');
-  confTd.innerHTML = row.confident
-    ? '<span class="conf-badge conf-high">✓ OK</span>'
-    : '<span class="conf-badge conf-low">⚠ Revisar</span>';
+  confTd.style.whiteSpace = 'nowrap';
+  const confBadge = document.createElement('span');
+  confBadge.className = row.confident ? 'conf-badge conf-high' : 'conf-badge conf-low';
+  confBadge.textContent = row.confident ? '✓ OK' : '⚠ Revisar';
+  const reviewBtn = document.createElement('button');
+  reviewBtn.className = 'review-row-btn';
+  reviewBtn.textContent = '✎';
+  reviewBtn.title = 'Revisar este ticket';
+  reviewBtn.addEventListener('click', () => openRowReview(row.id));
+  confTd.append(confBadge, reviewBtn);
 
   // ── Row number cell ──
   const numTd = document.createElement('td');
@@ -1160,9 +1223,10 @@ let reviewQueue = [];
 let reviewIdx = 0;
 let reviewRotDeg = 0;
 
-function startReview(queue) {
+function startReview(queue, manual = false) {
   reviewQueue = queue;
   reviewIdx = 0;
+  document.getElementById('reviewTitle').textContent = manual ? '✎ REVISAR TICKET' : '⚠ REVISAR TICKET';
   showReviewItem();
 }
 
@@ -1227,11 +1291,38 @@ function skipReview() {
   showReviewItem();
 }
 
-// Wire up buttons and rotation
+// Rotation state used by review modal
+const thumbRotation = {};
+
 document.addEventListener('DOMContentLoaded', () => {
+  // ── Lightbox controls ──
+  document.getElementById('lbClose').addEventListener('click', closeLightbox);
+  document.getElementById('lbOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('lbOverlay') ||
+        e.target === document.getElementById('lbImgWrap')) closeLightbox();
+  });
+  document.getElementById('lbZoomIn').addEventListener('click',    () => { lbZoom = Math.min(lbZoom + 0.25, 5); applyLbTransform(); });
+  document.getElementById('lbZoomOut').addEventListener('click',   () => { lbZoom = Math.max(lbZoom - 0.25, 0.25); applyLbTransform(); });
+  document.getElementById('lbZoomReset').addEventListener('click', () => { lbZoom = 1; applyLbTransform(); });
+  document.getElementById('lbRotL').addEventListener('click',      () => { lbRot = (lbRot - 90 + 360) % 360; applyLbTransform(); });
+  document.getElementById('lbRotR').addEventListener('click',      () => { lbRot = (lbRot + 90) % 360; applyLbTransform(); });
+  // Scroll to zoom
+  document.getElementById('lbImgWrap').addEventListener('wheel', e => {
+    e.preventDefault();
+    lbZoom = Math.min(5, Math.max(0.25, lbZoom - e.deltaY * 0.001));
+    applyLbTransform();
+  }, { passive: false });
+  // Escape key closes
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      closeLightbox();
+      document.getElementById('reviewModal').classList.add('hidden');
+    }
+  });
+
+  // ── Review modal controls ──
   document.getElementById('btnApprove').addEventListener('click', applyReview);
   document.getElementById('btnSkip').addEventListener('click', skipReview);
-
   document.getElementById('rvRotL').addEventListener('click', () => {
     reviewRotDeg = (reviewRotDeg - 90 + 360) % 360;
     const img = document.getElementById('reviewImg');
@@ -1245,6 +1336,7 @@ document.addEventListener('DOMContentLoaded', () => {
     img.style.maxHeight = (reviewRotDeg === 90 || reviewRotDeg === 270) ? '220px' : '260px';
   });
 
+  // ── Date range persistence ──
   document.getElementById('cfgFechaInicio')?.addEventListener('change', e => localStorage.setItem('g3_fecha_inicio', e.target.value));
   document.getElementById('cfgFechaFin')?.addEventListener('change', e => localStorage.setItem('g3_fecha_fin', e.target.value));
 });
@@ -1334,16 +1426,34 @@ async function exportExcel() {
 
 
 
-// Rotation state used only by the review modal
-const thumbRotation = {};
+// ── ZOOM VIEWER ──
+let lbZoom = 1, lbRot = 0;
 
 function openLightbox(src) {
-  const lbImg = document.getElementById('lightboxImg');
-  lbImg.src = src;
-  lbImg.style.transform = '';
-  lbImg.style.maxWidth  = '90vw';
-  lbImg.style.maxHeight = '90vh';
-  document.getElementById('lightbox').classList.remove('hidden');
+  lbZoom = 1; lbRot = 0;
+  const img = document.getElementById('lbImg');
+  img.src = src;
+  applyLbTransform();
+  document.getElementById('lbOverlay').classList.remove('hidden');
+}
+
+function applyLbTransform() {
+  document.getElementById('lbImg').style.transform =
+    `rotate(${lbRot}deg) scale(${lbZoom})`;
+}
+
+function closeLightbox() {
+  document.getElementById('lbOverlay').classList.add('hidden');
+  document.getElementById('lbImg').src = '';
+}
+
+// ── MANUAL SINGLE-ROW REVIEW ──
+function openRowReview(rowId) {
+  const row = rows.find(r => r.id === rowId);
+  if (!row) return;
+  // Wrap in a single-item queue
+  document.getElementById('reviewTitle').textContent = '✎ REVISAR TICKET';
+  startReview([row], true);
 }
 
 function clearAll() {
