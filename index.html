@@ -477,7 +477,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v3';
+const APP_VERSION = 'v8';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
@@ -946,7 +946,7 @@ async function processUnit(unit) {
   const fechasValidas = (fechaInicio && fechaFin) ? buildFechasList(fechaInicio, fechaFin) : [];
 
   const rangoFechas = fechasValidas.length
-    ? `Fecha entre ${fechasValidas[0]} y ${fechasValidas[fechasValidas.length-1]}. Si no coincide exactamente, pon confident=false.`
+    ? `Las fechas válidas esta semana son: ${fechasValidas.join(', ')}. Usa el DÍA y MES que lees para encontrar la fecha exacta en esta lista — no elijas "la más cercana", usa el día y mes correctos.`
     : 'El año siempre es 2026.';
 
   const prompt = `Extrae los datos de cada ticket RCA de volteo visible. Puede haber más de uno.
@@ -962,8 +962,9 @@ PLACAS (empieza aquí, es el campo más legible):
 FOLIO: número pre-impreso en rojo dentro de un recuadro (4 dígitos). No es manuscrito.
 
 FECHA: manuscrita, formato D-M-26 sin ceros. ${rangoFechas}
-Ejemplos: "1-5-26"=01/05/2026, "29-4-26"=29/04/2026. Salida: DD/MM/YYYY.
-IMPORTANTE: El dígito "4" manuscrito a veces se escribe sin cerrar arriba y parece una "1" — si ves un trazo con ángulo o gancho arriba a la izquierda, es un 4, no un 1.
+Ejemplos: "1-5-26"=01/05/2026, "29-4-26"=29/04/2026, "4-5-26"=04/05/2026. Salida: DD/MM/YYYY.
+IMPORTANTE sobre el año: siempre es 2026. Si solo ves un dígito al final (ej: "1-5-4" o "1-5-2") es porque el "26" está parcialmente cortado — completa siempre como 2026.
+IMPORTANTE sobre el "4": manuscrito sin cerrar arriba parece "1" — si hay trazo angulado arriba a la izquierda, es un 4.
 
 Campo ilegible → "" y confident=false.
 
@@ -1011,15 +1012,26 @@ Responde SOLO JSON sin texto extra:
       if (!placas) confident = false;
     }
 
-    // Enforce fecha within valid range
+    // Fix partial year — "01/05/4" means year was cut off, complete as 2026
     let fecha = t.fecha || '';
+    if (fecha) {
+      fecha = fecha.replace(/^(\d{1,2})\/(\d{1,2})\/(\d{1,2})$/, (_, d, m, y) => {
+        const fullY = y.length === 1 ? '202' + y : (y.length === 2 ? '20' + y : y);
+        return `${d.padStart(2,'0')}/${m.padStart(2,'0')}/${fullY}`;
+      });
+    }
+
+    // If date not in valid range, try to find by matching day+month (ignores wrong year)
     if (fecha && fechasValidas.length && !fechasValidas.includes(fecha)) {
-      const pd = parseDate(fecha);
-      if (pd) {
-        const nearest = fechasValidas
-          .map(f => ({ f, diff: Math.abs(parseDate(f) - pd) }))
-          .sort((a, b) => a.diff - b.diff)[0];
-        if (nearest) { fecha = nearest.f; confident = false; }
+      const parts = fecha.split('/');
+      if (parts.length === 3) {
+        const [dd, mm] = parts;
+        const byDayMonth = fechasValidas.find(f => f.startsWith(`${dd}/${mm}/`));
+        if (byDayMonth) {
+          fecha = byDayMonth; // correct match by day+month
+        } else {
+          confident = false; // day+month not in range — flag for manual review
+        }
       }
     }
 
