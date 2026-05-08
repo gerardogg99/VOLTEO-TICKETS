@@ -382,7 +382,7 @@
       <span class="review-counter" id="reviewCounter"></span>
     </div>
     <div class="review-img-wrap">
-      <img id="reviewImg" src="" onclick="openLightbox(this.src, -1)">
+      <img id="reviewImg" src="" onclick="openLightbox(this.src)">
     </div>
     <div class="review-fields">
       <div class="review-field">
@@ -421,7 +421,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v1';
+const APP_VERSION = 'v10';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
@@ -632,7 +632,6 @@ async function prepareImage(file) {
       workFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
     } catch(e) {
       console.warn('heic2any failed, sending raw:', e);
-      // fallback: send as-is and hope the API handles it
     }
   }
 
@@ -640,12 +639,15 @@ async function prepareImage(file) {
   const b64 = await fileToBase64(workFile);
   const mime = workFile.type || 'image/jpeg';
 
-  // 3. If under limit, done
-  if (b64.length <= MAX_B64_BYTES) return { b64, mime };
+  // 3. Build preview URL from workFile (JPEG blob for HEIC, original otherwise)
+  const previewUrl = URL.createObjectURL(workFile);
 
-  // 4. Too large — resize via canvas until it fits
+  // 4. If under limit, done
+  if (b64.length <= MAX_B64_BYTES) return { b64, mime, previewUrl };
+
+  // 5. Too large — resize via canvas until it fits
   const img = await loadImage(workFile);
-  let scale = Math.sqrt(MAX_B64_BYTES / b64.length); // rough initial scale
+  let scale = Math.sqrt(MAX_B64_BYTES / b64.length);
   let quality = 0.88;
   let result = b64;
 
@@ -659,7 +661,7 @@ async function prepareImage(file) {
     scale *= 0.8;
     quality = Math.max(0.7, quality - 0.05);
   }
-  return { b64: result, mime: 'image/jpeg' };
+  return { b64: result, mime: 'image/jpeg', previewUrl };
 }
 
 function loadImage(file) {
@@ -676,8 +678,7 @@ async function handleFiles(fileList) {
   const newFiles = [...fileList];
   for (const f of newFiles) {
     if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
-      const previewUrl = URL.createObjectURL(f);
-      const { b64, mime } = await prepareImage(f);
+      const { b64, mime, previewUrl } = await prepareImage(f);
       uploadedFiles.push({ id: fileCounter++, file: f, type: 'image', previewUrl, pages: [b64], mimes: [mime], pageCount: 1 });
     }
   }
@@ -789,8 +790,6 @@ function normalizePlacas(raw) {
 async function startProcessing() {
   if (processing || uploadedFiles.length === 0) return;
   processing = true; rows = []; rowCounter = 0;
-  // Clear thumb rotation state from any previous run
-  Object.keys(thumbRotation).forEach(k => delete thumbRotation[k]);
 
   const btn = document.getElementById('btnProcess');
   btn.disabled = true; btn.classList.add('running');
@@ -993,36 +992,21 @@ function renderRow(row) {
   tr.id = `row-${row.id}`;
   if (!row.confident) tr.classList.add('low-conf');
 
-  // ── Source cell: clickable thumb + rotate buttons ──
+  // ── Source cell: clickable thumb only (no rotate buttons in table) ──
   const srcTd = document.createElement('td');
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px';
 
   const thumbWrap = document.createElement('div');
   thumbWrap.className = 'thumb-wrap';
-  thumbWrap.id = `twrap-${row.id}`;
   thumbWrap.style.cursor = 'zoom-in';
 
   const img = document.createElement('img');
   img.className = 'thumb';
-  img.id = `thumb-${row.id}`;
   img.src = row.previewUrl;
-  img.addEventListener('load', () => fixThumbOrientation(img, row.id));
-  thumbWrap.addEventListener('click', () => openLightbox(row.previewUrl, row.id));
+  img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
   thumbWrap.appendChild(img);
-
-  const btnRow = document.createElement('div');
-  btnRow.style.cssText = 'display:flex;gap:0';
-  const btnL = document.createElement('button');
-  btnL.className = 'rotate-btn'; btnL.title = 'Rotar izq'; btnL.textContent = '↺';
-  const btnR = document.createElement('button');
-  btnR.className = 'rotate-btn'; btnR.title = 'Rotar der'; btnR.textContent = '↻';
-  btnL.addEventListener('click', () => rotateThumb(row.id, -90));
-  btnR.addEventListener('click', () => rotateThumb(row.id,  90));
-  btnRow.append(btnL, btnR);
-
-  wrap.append(thumbWrap, btnRow);
-  srcTd.appendChild(wrap);
+  // Always opens lightbox — works for both OK and Revisar rows
+  thumbWrap.addEventListener('click', () => openLightbox(row.previewUrl));
+  srcTd.appendChild(thumbWrap);
 
   if (row.multiTicket) {
     const badge = document.createElement('span');
@@ -1282,34 +1266,35 @@ function parseDate(s) {
   return new Date(y < 100 ? 2000+y : y, m-1, d);
 }
 
-// ── EXPORT — always generates fresh Excel with exact template format ──
 async function exportExcel() {
   const wb = XLSX.utils.book_new();
 
-  const sorted = [...rows].sort((a,b)=>{
-    const da=parseDate(a.fecha), db=parseDate(b.fecha);
-    if (da&&db&&da-db!==0) return da-db;
-    return parseInt(a.folio||0)-parseInt(b.folio||0);
+  // Sort: ECO first (G-01 before G-02), then date, then folio — same as preview
+  const sorted = [...rows].sort((a, b) => {
+    const ecoA = a.numero_economico || '';
+    const ecoB = b.numero_economico || '';
+    if (ecoA !== ecoB) return ecoA.localeCompare(ecoB);
+    const da = parseDate(a.fecha), db = parseDate(b.fecha);
+    if (da && db && da - db !== 0) return da - db;
+    return (a.folio || '').localeCompare(b.folio || '');
   });
 
-  const tiro   = document.getElementById('cfgTiro').value;
+  const tiro = document.getElementById('cfgTiro').value;
   const weekLabel = detectWeekLabel();
   const year = new Date().getFullYear();
 
-  // Exact template structure matching Conciliaciones_Semanales.xlsx
   const sheetData = [
-    [],  // row 1 empty
+    [],
     [`CONCILIACIÓN DE VIAJES ${tiro.toUpperCase()} SEMANA DEL ${weekLabel.toUpperCase()} DEL ${year}`],
-    [],  // row 3 empty
-    ['','No.','Fecha','Folio','Número Económico','Placas','Capacidad M3','Servicio','Tiro']
+    [],
+    ['', 'No.', 'Fecha', 'Folio', 'Número Económico', 'Placas', 'Capacidad M3', 'Servicio', 'Tiro']
   ];
 
-  sorted.forEach((row,i)=>{
-    const d = parseDate(row.fecha);
+  sorted.forEach((row, i) => {
     sheetData.push([
-      '', i+1,
-      d || row.fecha,
-      row.folio ? (parseInt(row.folio)||row.folio) : '',
+      '', i + 1,
+      row.fecha,          // keep as string DD/MM/YYYY — no Date object conversion
+      row.folio || '',    // keep as string to preserve leading zeros
       row.numero_economico,
       row.placas,
       row.capacidad,
@@ -1321,96 +1306,43 @@ async function exportExcel() {
   const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
   // Yellow fill for low-confidence rows
-  const yellowFill = { patternType:'solid', fgColor:{ rgb:'FFFF00' } };
-  sorted.forEach((row,i)=>{
+  const yellowFill = { patternType: 'solid', fgColor: { rgb: 'FFFF00' } };
+  sorted.forEach((row, i) => {
     if (!row.confident) {
-      ['B','C','D','E','F','G','H','I'].forEach(col=>{
-        const ref = col+(i+5);
-        if (!ws[ref]) ws[ref]={ v:'', t:'s' };
+      ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].forEach(col => {
+        const ref = col + (i + 5);
+        if (!ws[ref]) ws[ref] = { v: '', t: 's' };
         ws[ref].s = { fill: yellowFill };
       });
     }
   });
 
-  // Column widths
   ws['!cols'] = [
-    {wch:2},{wch:5},{wch:12},{wch:8},{wch:16},
-    {wch:12},{wch:12},{wch:10},{wch:25}
+    { wch: 2 }, { wch: 5 }, { wch: 12 }, { wch: 8 }, { wch: 16 },
+    { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 25 }
   ];
 
-  // Date format for Fecha column
-  sorted.forEach((row,i)=>{
-    const ref = 'C'+(i+5);
-    const d = parseDate(row.fecha);
-    if (ws[ref]&&d) { ws[ref].t='d'; ws[ref].v=d; ws[ref].z='DD/MM/YYYY'; }
-  });
+  ws['!ref'] = `A1:I${sorted.length + 4}`;
 
-  ws['!ref'] = `A1:I${sorted.length+4}`;
-
-  const sheetName = weekLabel.replace(/[\\/*?:[\]]/g,'-').substring(0,31) || 'Semana';
+  const sheetName = weekLabel.replace(/[\\/*?:[\]]/g, '-').substring(0, 31) || 'Semana';
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
-  const fileName = `Conciliacion_${weekLabel.replace(/\s/g,'_').replace(/–/g,'-')}_${year}.xlsx`;
-  XLSX.writeFile(wb, fileName, { cellStyles:true, bookType:'xlsx' });
+  const fileName = `Conciliacion_${weekLabel.replace(/\s/g, '_').replace(/–/g, '-')}_${year}.xlsx`;
+  XLSX.writeFile(wb, fileName, { cellStyles: true, bookType: 'xlsx' });
 }
 
-// Per-row rotation state (degrees)
+
+
+
+// Rotation state used only by the review modal
 const thumbRotation = {};
 
-function fixThumbOrientation(img, rowId) {
-  // If portrait, start at 90° CW so it shows landscape
-  if (img.naturalHeight > img.naturalWidth) {
-    thumbRotation[rowId] = 90;
-  } else {
-    thumbRotation[rowId] = 0;
-  }
-  applyThumbRotation(rowId);
-}
-
-function rotateThumb(rowId, delta) {
-  thumbRotation[rowId] = ((thumbRotation[rowId] || 0) + delta + 360) % 360;
-  applyThumbRotation(rowId);
-}
-
-function applyThumbRotation(rowId) {
-  const deg = thumbRotation[rowId] || 0;
-  const img = document.getElementById(`thumb-${rowId}`);
-  const wrap = document.getElementById(`twrap-${rowId}`);
-  if (!img || !wrap) return;
-
-  const wW = 64, wH = 44;
-  const iW = img.naturalWidth, iH = img.naturalHeight;
-  const swapped = deg === 90 || deg === 270;
-
-  // Scale to fill the wrap after rotation
-  const scale = swapped
-    ? Math.min(wW / iH, wH / iW)
-    : Math.min(wW / iW, wH / iH);
-
-  img.style.width  = Math.round(iW * scale) + 'px';
-  img.style.height = Math.round(iH * scale) + 'px';
-  img.style.objectFit = 'cover';
-  img.style.position = 'absolute';
-  img.style.top  = '50%';
-  img.style.left = '50%';
-  img.style.transform = `translate(-50%, -50%) rotate(${deg}deg)`;
-}
-
-function openLightbox(src, rowId) {
+function openLightbox(src) {
   const lbImg = document.getElementById('lightboxImg');
   lbImg.src = src;
   lbImg.style.transform = '';
-  lbImg.style.maxWidth  = '';
-  lbImg.style.maxHeight = '';
-  lbImg.onload = () => {
-    const deg = thumbRotation[rowId] || 0;
-    if (deg) {
-      const swapped = deg === 90 || deg === 270;
-      lbImg.style.maxWidth  = swapped ? '90vh' : '90vw';
-      lbImg.style.maxHeight = swapped ? '90vw' : '90vh';
-      lbImg.style.transform = `rotate(${deg}deg)`;
-    }
-  };
+  lbImg.style.maxWidth  = '90vw';
+  lbImg.style.maxHeight = '90vh';
   document.getElementById('lightbox').classList.remove('hidden');
 }
 
@@ -1418,7 +1350,6 @@ function clearAll() {
   // Revoke any existing blob URLs to free memory
   uploadedFiles.forEach(e => { if (e.previewUrl && e.previewUrl.startsWith('blob:')) URL.revokeObjectURL(e.previewUrl); });
   uploadedFiles = []; rows = []; rowCounter = 0; fileCounter = 0; excelData = null;
-  Object.keys(thumbRotation).forEach(k => delete thumbRotation[k]);
   document.getElementById('fileList').innerHTML = '';
   document.querySelector('.upload-text').innerHTML =
     '<strong>Arrastra aquí</strong> o haz clic<br>Fotos de tickets';
