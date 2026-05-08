@@ -207,6 +207,39 @@
   .empty-icon { font-size: 3rem; opacity: 0.3; }
   .empty-text { font-family: var(--mono); font-size: 13px; text-align: center; line-height: 1.8; }
 
+  /* ── Review modal ── */
+  .review-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: flex; align-items: center; justify-content: center; }
+  .review-modal.hidden { display: none; }
+  .review-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    width: 480px; max-width: 95vw; overflow: hidden; display: flex; flex-direction: column;
+  }
+  .review-header {
+    padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .review-title { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.06em; }
+  .review-counter { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .review-img-wrap { background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 1rem; min-height: 200px; }
+  .review-img-wrap img { max-width: 100%; max-height: 260px; object-fit: contain; border-radius: 6px; cursor: zoom-in; }
+  .review-fields { padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; }
+  .review-field { display: flex; align-items: center; gap: 0.75rem; }
+  .review-field label { font-family: var(--mono); font-size: 10px; color: var(--muted); width: 60px; flex-shrink: 0; text-transform: uppercase; }
+  .review-field input, .review-field select {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 5px; padding: 6px 10px;
+    font-family: var(--mono); font-size: 13px; outline: none;
+  }
+  .review-field input:focus, .review-field select:focus { border-color: var(--accent2); }
+  .review-actions { padding: 0.75rem 1.25rem 1rem; display: flex; gap: 0.75rem; border-top: 1px solid var(--border); margin-top: 0.25rem; }
+  .btn-approve { flex: 1; padding: 10px; border: none; border-radius: 7px; background: var(--success); color: #000; font-family: var(--mono); font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+  .btn-approve:hover { background: #16a34a; }
+  .btn-skip { padding: 10px 16px; border: 1px solid var(--border); border-radius: 7px; background: transparent; color: var(--muted); font-family: var(--mono); font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .btn-skip:hover { border-color: var(--danger); color: var(--danger); }
+  .review-rotate { display: flex; gap: 4px; margin-left: auto; }
+  .review-rotate button { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 13px; }
+  .review-rotate button:hover { color: var(--accent); border-color: var(--accent); }
+
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -340,12 +373,54 @@
   </div>
 </div>
 
+<!-- ── Review modal ── -->
+<div class="review-modal hidden" id="reviewModal">
+  <div class="review-box">
+    <div class="review-header">
+      <span class="review-title">⚠ REVISAR TICKET</span>
+      <span class="review-counter" id="reviewCounter"></span>
+    </div>
+    <div class="review-img-wrap">
+      <img id="reviewImg" src="" onclick="openLightbox(this.src, -1)">
+    </div>
+    <div class="review-fields">
+      <div class="review-field">
+        <label>Fecha</label>
+        <input type="text" id="rvFecha" placeholder="DD/MM/YYYY">
+      </div>
+      <div class="review-field">
+        <label>Folio</label>
+        <input type="text" id="rvFolio" placeholder="0000">
+      </div>
+      <div class="review-field">
+        <label>ECO</label>
+        <select id="rvEco">
+          <option value="">— ?</option>
+          <option value="G-01">G-01 — VR-7129-C</option>
+          <option value="G-02">G-02 — VS-4578-C</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--muted)" id="rvSource"></span>
+        <div class="review-rotate">
+          <button id="rvRotL" title="Rotar izq">↺</button>
+          <button id="rvRotR" title="Rotar der">↻</button>
+        </div>
+      </div>
+    </div>
+    <div class="review-actions">
+      <button class="btn-approve" id="btnApprove">✓ Aprobar y continuar</button>
+      <button class="btn-skip" id="btnSkip">Saltar</button>
+    </div>
+  </div>
+</div>
+
 <div class="lightbox hidden" id="lightbox" onclick="this.classList.add('hidden')">
   <img id="lightboxImg" src="">
 </div>
 
 <script>
-const APP_VERSION = 'v6';
+const APP_VERSION = 'v7';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
@@ -381,11 +456,8 @@ window.addEventListener('load', () => {
   if (ff) document.getElementById('cfgFechaFin').value = ff;
 });
 
-// Save date range on change
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('cfgFechaInicio')?.addEventListener('change', e => localStorage.setItem('g3_fecha_inicio', e.target.value));
-  document.getElementById('cfgFechaFin')?.addEventListener('change', e => localStorage.setItem('g3_fecha_fin', e.target.value));
-});
+
+
 
 let excelData = null;
 let excelFileName = "Conciliaciones_Semanales.xlsx";
@@ -1018,7 +1090,104 @@ function finalize() {
   document.getElementById('btnExport').disabled = rows.length === 0;
   document.getElementById('headerMeta').textContent = `${rows.length} tickets listos — revisa y descarga`;
   updateStats();
+  // Auto-launch review for low-confidence rows
+  const toReview = rows.filter(r => !r.confident);
+  if (toReview.length > 0) startReview(toReview);
 }
+
+// ── REVIEW MODAL ──
+let reviewQueue = [];
+let reviewIdx = 0;
+let reviewRotDeg = 0;
+
+function startReview(queue) {
+  reviewQueue = queue;
+  reviewIdx = 0;
+  showReviewItem();
+}
+
+function showReviewItem() {
+  if (reviewIdx >= reviewQueue.length) {
+    document.getElementById('reviewModal').classList.add('hidden');
+    updateStats();
+    return;
+  }
+  const row = reviewQueue[reviewIdx];
+  reviewRotDeg = thumbRotation[row.id] || 0;
+
+  document.getElementById('reviewModal').classList.remove('hidden');
+  document.getElementById('reviewCounter').textContent =
+    `${reviewIdx + 1} de ${reviewQueue.length}`;
+  document.getElementById('rvSource').textContent = row.sourceName;
+  document.getElementById('rvFecha').value = row.fecha;
+  document.getElementById('rvFolio').value = row.folio;
+  document.getElementById('rvEco').value = row.numero_economico || '';
+
+  const img = document.getElementById('reviewImg');
+  img.src = row.previewUrl || '';
+  img.style.transform = reviewRotDeg ? `rotate(${reviewRotDeg}deg)` : '';
+  img.style.maxHeight = (reviewRotDeg === 90 || reviewRotDeg === 270) ? '220px' : '260px';
+}
+
+function applyReview() {
+  const row = reviewQueue[reviewIdx];
+  const r = rows.find(x => x.id === row.id);
+  if (!r) return;
+
+  r.fecha  = document.getElementById('rvFecha').value.trim();
+  r.folio  = document.getElementById('rvFolio').value.trim();
+  const eco = document.getElementById('rvEco').value;
+  r.numero_economico = eco;
+  r.placas = TRUCKS[eco]?.placas || '';
+  r.confident = true;
+
+  // Update the table row
+  const tr = document.getElementById(`row-${r.id}`);
+  if (tr) {
+    tr.classList.remove('low-conf');
+    // Update visible inputs in the table
+    const inputs = tr.querySelectorAll('.cell-edit');
+    if (inputs[0]) inputs[0].value = r.fecha;
+    if (inputs[1]) inputs[1].value = r.folio;
+    const sel = tr.querySelector('select');
+    if (sel) { sel.value = eco; sel.style.color = eco === 'G-01' ? '#a78bfa' : '#34d399'; }
+    const placa = tr.querySelector('.placa-cell');
+    if (placa) placa.textContent = r.placas;
+    const conf = tr.querySelector('.conf-badge');
+    if (conf) { conf.className = 'conf-badge conf-high'; conf.textContent = '✓ OK'; }
+  }
+
+  thumbRotation[row.id] = reviewRotDeg;
+  reviewIdx++;
+  showReviewItem();
+}
+
+function skipReview() {
+  reviewIdx++;
+  showReviewItem();
+}
+
+// Wire up buttons and rotation
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btnApprove').addEventListener('click', applyReview);
+  document.getElementById('btnSkip').addEventListener('click', skipReview);
+
+  document.getElementById('rvRotL').addEventListener('click', () => {
+    reviewRotDeg = (reviewRotDeg - 90 + 360) % 360;
+    const img = document.getElementById('reviewImg');
+    img.style.transform = reviewRotDeg ? `rotate(${reviewRotDeg}deg)` : '';
+    img.style.maxHeight = (reviewRotDeg === 90 || reviewRotDeg === 270) ? '220px' : '260px';
+  });
+  document.getElementById('rvRotR').addEventListener('click', () => {
+    reviewRotDeg = (reviewRotDeg + 90) % 360;
+    const img = document.getElementById('reviewImg');
+    img.style.transform = reviewRotDeg ? `rotate(${reviewRotDeg}deg)` : '';
+    img.style.maxHeight = (reviewRotDeg === 90 || reviewRotDeg === 270) ? '220px' : '260px';
+  });
+
+  document.getElementById('cfgFechaInicio')?.addEventListener('change', e => localStorage.setItem('g3_fecha_inicio', e.target.value));
+  document.getElementById('cfgFechaFin')?.addEventListener('change', e => localStorage.setItem('g3_fecha_fin', e.target.value));
+});
 
 // ── WEEK LABEL ──
 function detectWeekLabel() {
@@ -1191,4 +1360,4 @@ function clearAll() {
 }
 </script>
 </body>
-</html>
+</html>F
