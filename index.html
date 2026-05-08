@@ -345,7 +345,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v4';
+const APP_VERSION = 'v5';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
@@ -765,27 +765,26 @@ async function processUnit(unit) {
   const fechasValidas = (fechaInicio && fechaFin) ? buildFechasList(fechaInicio, fechaFin) : [];
 
   const rangoFechas = fechasValidas.length
-    ? `La fecha DEBE ser una de estas (DD/MM/YYYY): ${fechasValidas.join(', ')}.`
+    ? `Fecha entre ${fechasValidas[0]} y ${fechasValidas[fechasValidas.length-1]}. Si no coincide exactamente, pon confident=false.`
     : 'El año siempre es 2026.';
 
-  const prompt = `Extrae los datos de cada ticket de volteo visible en la imagen. Puede haber más de uno.
+  const prompt = `Extrae los datos de cada ticket RCA de volteo visible. Puede haber más de uno.
 
-PLACAS (lee este campo primero, es el más confiable):
-- Solo existen dos camiones: VR-7129-C (= G-01) y VS-4578-C (= G-02)
-- Si ves "VR" o "7129" → VR-7129-C / G-01
-- Si ves "VS" o "4578" → VS-4578-C / G-02
-- Si no puedes leer las placas, intenta con el campo "CAMIÓN No. ECO:"
+PLACAS (empieza aquí, es el campo más legible):
+- Solo hay dos camiones posibles: VR-7129-C (G-01) y VS-4578-C (G-02)
+- "VR" o "7129" → VR-7129-C / G-01
+- "VS" o "4578" → VS-4578-C / G-02
+- Si placas ilegibles, usa el campo "CAMIÓN No. ECO:"
 
-FOLIO: número impreso en rojo/naranja en un recuadro. Es pre-impreso, no manuscrito. 4 dígitos con ceros: "0984".
+FOLIO: número pre-impreso en rojo dentro de un recuadro (4 dígitos). No es manuscrito.
 
-FECHA: escrita a mano, formato D-M-26 sin ceros (ej: 5-1-26 = 05/01/2026, 3-4-26 = 03/04/2026).
-${rangoFechas}
-Convierte siempre a DD/MM/YYYY.
+FECHA: manuscrita, formato D-M-26 sin ceros. ${rangoFechas}
+Ejemplos: "1-5-26"=01/05/2026, "29-4-26"=29/04/2026. Salida: DD/MM/YYYY.
 
-Si un campo es ilegible → ponlo como "" y confident=false.
+Campo ilegible → "" y confident=false.
 
-Responde solo JSON:
-{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-01","placas":"VR-7129-C","confident":true}]}`;
+Responde SOLO JSON sin texto extra:
+{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","placas":"VS-4578-C","confident":true}]}`;
 
   let raw = '';
   try {
