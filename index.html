@@ -6,6 +6,7 @@
 <title>G3 Volteos – Captura de Tickets</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 
 <style>
   :root {
@@ -420,7 +421,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v7';
+const APP_VERSION = 'v1';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
@@ -617,13 +618,66 @@ function showGdriveClientIdField() {
   if (saved) document.getElementById('cfgGdriveClientId').value = saved;
 }
 
+// Max base64 size to send to API (~4MB decoded = ~5.3MB base64, safe for Anthropic)
+const MAX_B64_BYTES = 4 * 1024 * 1024;
+
+async function prepareImage(file) {
+  // 1. Convert HEIC/HEIF to JPEG first
+  const isHeic = /\.(heic|heif)$/i.test(file.name) ||
+                 file.type === 'image/heic' || file.type === 'image/heif';
+  let workFile = file;
+  if (isHeic) {
+    try {
+      const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+      workFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+    } catch(e) {
+      console.warn('heic2any failed, sending raw:', e);
+      // fallback: send as-is and hope the API handles it
+    }
+  }
+
+  // 2. Read to base64
+  const b64 = await fileToBase64(workFile);
+  const mime = workFile.type || 'image/jpeg';
+
+  // 3. If under limit, done
+  if (b64.length <= MAX_B64_BYTES) return { b64, mime };
+
+  // 4. Too large — resize via canvas until it fits
+  const img = await loadImage(workFile);
+  let scale = Math.sqrt(MAX_B64_BYTES / b64.length); // rough initial scale
+  let quality = 0.88;
+  let result = b64;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.round(img.naturalWidth  * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    result = canvas.toDataURL('image/jpeg', quality).split(',')[1];
+    if (result.length <= MAX_B64_BYTES) break;
+    scale *= 0.8;
+    quality = Math.max(0.7, quality - 0.05);
+  }
+  return { b64: result, mime: 'image/jpeg' };
+}
+
+function loadImage(file) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => { URL.revokeObjectURL(url); res(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Image load failed')); };
+    img.src = url;
+  });
+}
+
 async function handleFiles(fileList) {
   const newFiles = [...fileList];
   for (const f of newFiles) {
     if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
       const previewUrl = URL.createObjectURL(f);
-      const b64  = await fileToBase64(f);
-      const mime = getMimeType(f);
+      const { b64, mime } = await prepareImage(f);
       uploadedFiles.push({ id: fileCounter++, file: f, type: 'image', previewUrl, pages: [b64], mimes: [mime], pageCount: 1 });
     }
   }
@@ -1043,7 +1097,7 @@ function renderRow(row) {
   // ── Row number cell ──
   const numTd = document.createElement('td');
   numTd.style.cssText = 'color:var(--muted);width:28px';
-  numTd.textContent = rows.length;
+  numTd.textContent = row._sortedIdx ?? rows.length;
 
   tr.append(numTd, srcTd, fechaTd, folioTd, ecoTd, placaTd, tiroTd, confTd);
   tbody.appendChild(tr);
@@ -1088,8 +1142,30 @@ function finalize() {
   btn.innerHTML = '<span>✓</span> LISTO — procesar de nuevo';
   btn.disabled = false;
   document.getElementById('btnExport').disabled = rows.length === 0;
-  document.getElementById('headerMeta').textContent = `${rows.length} tickets listos — revisa y descarga`;
   updateStats();
+
+  // Sort table: ECO (G-01 first) then date ascending
+  rows.sort((a, b) => {
+    const ecoA = a.numero_economico || 'ZZ';
+    const ecoB = b.numero_economico || 'ZZ';
+    if (ecoA !== ecoB) return ecoA.localeCompare(ecoB);
+    const da = parseDate(a.fecha), db = parseDate(b.fecha);
+    if (da && db) return da - db;
+    return 0;
+  });
+
+  // Re-render tbody in sorted order
+  const tbody = document.getElementById('tbody');
+  if (tbody) {
+    tbody.innerHTML = '';
+    rows.forEach((row, i) => {
+      row._sortedIdx = i + 1; // update display number
+      renderRow(row);
+    });
+  }
+
+  document.getElementById('headerMeta').textContent = `${rows.length} tickets listos — revisa y descarga`;
+
   // Auto-launch review for low-confidence rows
   const toReview = rows.filter(r => !r.confident);
   if (toReview.length > 0) startReview(toReview);
@@ -1360,4 +1436,4 @@ function clearAll() {
 }
 </script>
 </body>
-</html>F
+</html>
