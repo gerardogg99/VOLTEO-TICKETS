@@ -810,87 +810,56 @@ async function processUnit(unit) {
 
   const fechaInicio = document.getElementById('cfgFechaInicio').value;
   const fechaFin    = document.getElementById('cfgFechaFin').value;
-  const rangoStr = (fechaInicio && fechaFin)
-    ? `FECHAS VÁLIDAS ESTA SEMANA: ${buildFechasList(fechaInicio, fechaFin).join(', ')}`
-    : '';
+  const fechasValidas = (fechaInicio && fechaFin) ? buildFechasList(fechaInicio, fechaFin) : [];
+  const rangoStr = fechasValidas.length
+    ? `\nFECHAS VÁLIDAS — LA ÚNICA LISTA POSIBLE PARA ESTA SEMANA:\n${fechasValidas.join(', ')}\nLa fecha del ticket DEBE ser una de estas. No existe otra posibilidad.\nSi lo que lees no coincide exactamente, elige la más cercana de la lista y pon confident=false.`
+    : '\nNo se configuró rango de fechas. Usa el año 2026 siempre.';
 
-  // ── PASO 1: Lectura bruta — Claude describe lo que ve, sin formatear ──
-  const promptLectura = `Eres un lector experto de tickets de volteo de arena (empresa G3 Volteos, México).
+  const prompt = `Eres un extractor de datos de tickets de volteo de arena (empresa G3 Volteos, México).
+Analiza la imagen. Puede haber UNO o VARIOS tickets visibles.
 
-Observa la imagen con cuidado. Puede haber UNO o VARIOS tickets.
+━━━ PASO 1 — PLACAS (empieza siempre por aquí, es el campo más legible) ━━━
+Busca el campo "PLACAS:" en el ticket. Solo existen DOS camiones posibles:
+  • Si lees algo con "VR" o "7129"  →  placas="VR-7129-C"  numero_economico="G-01"
+  • Si lees algo con "VS" o "4578"  →  placas="VS-4578-C"  numero_economico="G-02"
+El campo "CAMIÓN No. ECO:" solo úsalo si PLACAS es completamente ilegible.
+Si ni placas ni eco son legibles → deja placas="" y numero_economico="" y pon confident=false.
 
-Para CADA ticket que veas, describe EXACTAMENTE lo que lees en cada campo, sin interpretar ni corregir:
+━━━ PASO 2 — FOLIO ━━━
+Es un número PRE-IMPRESO en tinta roja o naranja dentro de un recuadro (normalmente 4 dígitos).
+NO es el número escrito a mano. Si no lo puedes leer con certeza → folio="" y confident=false.
+Escríbelo con ceros a la izquierda: "0984", "1203".
 
-TICKET [N]:
-- FECHA_BRUTA: (escribe los dígitos exactos que ves escritos a mano, ej: "1-4-26", "5 5 26", "3/4/26")
-- FOLIO_BRUTO: (número impreso en rojo/naranja en recuadro, ej: "0984". Solo el impreso, no el manuscrito)
-- ECO_BRUTO: (lo que dice el campo "CAMIÓN No. ECO:", ej: "G-01", "G01", "G-02")
-- PLACAS_BRUTAS: (lo que dice el campo "PLACAS:", ej: "VR-7129-C", "VS4578C", "VR 7129")
-- LEGIBILIDAD: (CLARA / PARCIAL / ILEGIBLE — para cada campo)
+━━━ PASO 3 — FECHA ━━━
+Está escrita a mano. El formato es D-M-26 (día-mes-año, sin ceros adelante).
+El año SIEMPRE es 2026, aunque veas un solo dígito al final (el "26" se refiere a 2026).
+Ejemplos de lectura: "1-4-26"→"01/04/2026"  "5-1-26"→"05/01/2026"  "3/4/26"→"03/04/2026"${rangoStr}
+Salida siempre en formato DD/MM/YYYY.
+Si la fecha es completamente ilegible → fecha="" y confident=false.
 
-Si no hay tickets visibles, escribe: SIN TICKETS`;
+━━━ CAMPOS ILEGIBLES ━━━
+Si un campo no se puede leer con certeza → déjalo en "" (cadena vacía). No inventes valores.
 
-  let lectura = '';
-  try {
-    lectura = await callWorker([{
-      role: 'user',
-      content: [
-        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: unit.b64 } },
-        { type: 'text', text: promptLectura }
-      ]
-    }], 600);
-  } catch(e) {
-    addLog(log, `✗ ${label}: Error paso 1 — ${e.message}`, 'err');
-    return;
-  }
-
-  if (lectura.includes('SIN TICKETS')) {
-    addLog(log, `⚠ ${label}: sin tickets detectados`, 'warn');
-    return;
-  }
-
-  // ── PASO 2: Validación y formato — Claude aplica reglas de negocio ──
-  const promptFormato = `Eres un validador de datos de tickets de volteo. 
-Recibes una lectura bruta y debes producir el JSON final aplicando estas reglas:
-
-LECTURA BRUTA:
-${lectura}
-
-REGLAS DE NEGOCIO:
-1. FECHA: el formato original es D-M-AA (día-mes-año corto, sin ceros).
-   Convierte siempre a DD/MM/YYYY con año 20XX.
-   Ejemplos: "1-4-26"→"01/04/2026", "5 5 26"→"05/05/2026", "3/4/26"→"03/04/2026"
-   Si el año no está visible, asume 26 (→2026).
-   ${rangoStr ? rangoStr + '\n   Si la fecha no coincide con ninguna válida, elige la más cercana y pon confident=false.' : ''}
-
-2. FOLIO: usa SOLO el número impreso (rojo/naranja en recuadro). 4 dígitos con ceros a la izquierda.
-   Si no hay folio impreso visible → folio: ""
-
-3. PLACAS y ECO — las placas mandan siempre:
-   - Si placas contienen "7129" o "VR-7129" → eco="G-01", placas="VR-7129-C"
-   - Si placas contienen "4578" o "VS-4578" → eco="G-02", placas="VS-4578-C"
-   - Si placas ilegibles pero eco dice "G-01" → placas="VR-7129-C" (con confident=false)
-   - Si placas ilegibles pero eco dice "G-02" → placas="VS-4578-C" (con confident=false)
-
-4. confident=false si CUALQUIERA de estos es cierto:
-   - fecha ilegible o no coincide con el rango válido
-   - folio ilegible
-   - placas ilegibles (aunque se haya inferido por eco)
-
-Responde ÚNICAMENTE con JSON, sin texto adicional:
-{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","placas":"VS-4578-C","confident":true}]}
-Sin tickets: {"tickets":[]}`;
+Responde SOLO con JSON, sin texto antes ni después:
+{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-01","placas":"VR-7129-C","confident":true}]}
+Sin tickets visibles: {"tickets":[]}`;
 
   let raw = '';
   try {
-    raw = await callWorker([{ role: 'user', content: promptFormato }], 500);
+    raw = await callWorker([{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: unit.b64 } },
+        { type: 'text', text: prompt }
+      ]
+    }], 800);
   } catch(e) {
-    addLog(log, `✗ ${label}: Error paso 2 — ${e.message}`, 'err');
+    addLog(log, `✗ ${label}: ${e.message}`, 'err');
     return;
   }
 
-  // Robust JSON extraction
-  const jsonMatch = raw.replace(/```json|```/g,'').match(/\{[\s\S]*\}/);
+  // Robust JSON extraction — handles markdown fences and leading text
+  const jsonMatch = raw.replace(/```json|```/g, '').match(/\{[\s\S]*\}/);
   let parsed;
   try { parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { tickets: [] }; }
   catch { parsed = { tickets: [] }; }
@@ -898,7 +867,7 @@ Sin tickets: {"tickets":[]}`;
   const tickets = Array.isArray(parsed.tickets) ? parsed.tickets : [];
 
   if (tickets.length === 0) {
-    addLog(log, `⚠ ${label}: sin tickets en resultado`, 'warn');
+    addLog(log, `⚠ ${label}: sin tickets detectados`, 'warn');
     return;
   }
 
@@ -910,18 +879,37 @@ Sin tickets: {"tickets":[]}`;
   const capacidad= document.getElementById('cfgCapacidad').value;
 
   tickets.forEach(t => {
-    // Final normalization using TRUCKS config
+    // JS safety net: normalize plates and enforce TRUCKS mapping
     const norm = normalizePlacas(t.placas);
     let eco, placas, confident = t.confident !== false;
 
     if (norm) {
       eco    = norm.eco;
       placas = norm.placas;
+    } else if (t.placas === '' || t.placas == null) {
+      // Model left it blank intentionally — keep blank for manual fill
+      eco    = (t.numero_economico || '');
+      placas = '';
+      if (!eco) confident = false;
     } else {
-      // placas ilegibles — derive from eco field
+      // Unrecognized plate string — try ECO fallback
       eco    = (t.numero_economico || '').trim();
       placas = TRUCKS[eco]?.placas || '';
-      if (!placas) confident = false; // truly unknown
+      confident = false; // neither was clean
+    }
+
+    // Date: enforce it's within valid range if configured
+    let fecha = t.fecha || '';
+    if (fecha && fechasValidas.length && !fechasValidas.includes(fecha)) {
+      // Find nearest valid date
+      const parsed = parseDate(fecha);
+      if (parsed) {
+        const nearest = fechasValidas
+          .map(f => ({ f, d: Math.abs(parseDate(f) - parsed) }))
+          .sort((a, b) => a.d - b.d)[0];
+        fecha = nearest ? nearest.f : fecha;
+      }
+      confident = false;
     }
 
     const row = {
@@ -930,7 +918,7 @@ Sin tickets: {"tickets":[]}`;
       isPdf: unit.isPdf,
       sourceName: label,
       multiTicket: multi,
-      fecha: t.fecha || '',
+      fecha,
       folio: t.folio || '',
       numero_economico: eco,
       placas, tiro, servicio, capacidad,
@@ -939,7 +927,7 @@ Sin tickets: {"tickets":[]}`;
     rows.push(row);
     renderRow(row);
     addLog(log,
-      `${row.confident?'✓':'⚠'} Folio ${row.folio||'?'} | ${row.numero_economico||'?'} | ${row.fecha||'?'}`,
+      `${row.confident ? '✓' : '⚠'} Folio ${row.folio||'—'} | ${eco||'—'} | ${fecha||'—'}`,
       row.confident ? 'ok' : 'warn');
   });
 }
@@ -954,46 +942,131 @@ function renderRow(row) {
   tr.id = `row-${row.id}`;
   if (!row.confident) tr.classList.add('low-conf');
 
-  const thumbHtml = row.isPdf
-    ? `<div class="pdf-thumb">📄</div>`
-    : `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
-        <div class="thumb-wrap" id="twrap-${row.id}" onclick="openLightbox('${row.previewUrl}', ${row.id})">
-          <img class="thumb" src="${row.previewUrl}" id="thumb-${row.id}" onload="fixThumbOrientation(this,${row.id})">
-        </div>
+  // ── Source cell with thumb + rotate buttons ──
+  const srcTd = document.createElement('td');
+
+  if (row.isPdf) {
+    // PDF: icon + rotate buttons (rotates the lightbox view)
+    srcTd.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+        <div class="pdf-thumb" style="cursor:default">📄</div>
         <div style="display:flex;gap:0">
-          <button class="rotate-btn" onclick="rotateThumb(${row.id},-90)" title="Rotar izq">↺</button>
-          <button class="rotate-btn" onclick="rotateThumb(${row.id},90)" title="Rotar der">↻</button>
+          <button class="rotate-btn" title="Rotar izq">↺</button>
+          <button class="rotate-btn" title="Rotar der">↻</button>
         </div>
-       </div>`;
+      </div>`;
+    // PDF rotate buttons adjust thumbRotation for lightbox only
+    const [btnL, btnR] = srcTd.querySelectorAll('.rotate-btn');
+    btnL.addEventListener('click', () => rotateThumb(row.id, -90));
+    btnR.addEventListener('click', () => rotateThumb(row.id,  90));
+  } else {
+    // Image: clickable thumb + rotate buttons
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px';
 
-  const multiHtml = row.multiTicket ? `<span class="multi-badge">×multi</span>` : '';
-  const sourceClass = row.isPdf ? 'pdf-tag' : '';
+    const thumbWrap = document.createElement('div');
+    thumbWrap.className = 'thumb-wrap';
+    thumbWrap.id = `twrap-${row.id}`;
+    thumbWrap.style.cursor = 'zoom-in';
 
-  const ecoColor = row.numero_economico.includes('G-01') ? '#a78bfa' : '#34d399';
+    const img = document.createElement('img');
+    img.className = 'thumb';
+    img.id = `thumb-${row.id}`;
+    img.src = row.previewUrl;
+    img.addEventListener('load', () => fixThumbOrientation(img, row.id));
+    thumbWrap.addEventListener('click', () => openLightbox(row.previewUrl, row.id));
+    thumbWrap.appendChild(img);
 
-  tr.innerHTML = `
-    <td style="color:var(--muted);width:28px">${rows.length}</td>
-    <td>
-      ${thumbHtml}
-      ${multiHtml}
-    </td>
-    <td><input class="cell-edit" value="${row.fecha}"
-      onchange="rows.find(r=>r.id==${row.id}).fecha=this.value;updateStats()"></td>
-    <td><input class="cell-edit" value="${row.folio}" style="width:80px"
-      onchange="rows.find(r=>r.id==${row.id}).folio=this.value"></td>
-    <td>
-      <select style="background:var(--bg);border:none;border-bottom:1px solid transparent;color:${ecoColor};font-family:var(--mono);font-size:12px;outline:none;"
-        onchange="const r=rows.find(x=>x.id==${row.id});r.numero_economico=this.value;r.placas=this.value==='G-01'?'VR-7129-C':'VS-4578-C';this.closest('tr').querySelector('.placa-cell').textContent=r.placas;updateStats()">
-        <option ${row.numero_economico.includes('G-01')?'selected':''}>G-01</option>
-        <option ${row.numero_economico.includes('G-02')?'selected':''}>G-02</option>
-      </select>
-    </td>
-    <td class="placa-cell" style="color:var(--muted);font-size:11px">${row.placas}</td>
-    <td><span class="tiro-tag">${row.tiro.split('/')[0].trim()}</span></td>
-    <td>${row.confident
-      ? '<span class="conf-badge conf-high">✓ OK</span>'
-      : '<span class="conf-badge conf-low">⚠ Revisar</span>'}</td>`;
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:0';
+    const btnL = document.createElement('button');
+    btnL.className = 'rotate-btn'; btnL.title = 'Rotar izq'; btnL.textContent = '↺';
+    const btnR = document.createElement('button');
+    btnR.className = 'rotate-btn'; btnR.title = 'Rotar der'; btnR.textContent = '↻';
+    btnL.addEventListener('click', () => rotateThumb(row.id, -90));
+    btnR.addEventListener('click', () => rotateThumb(row.id,  90));
+    btnRow.append(btnL, btnR);
 
+    wrap.append(thumbWrap, btnRow);
+    srcTd.appendChild(wrap);
+  }
+
+  if (row.multiTicket) {
+    const badge = document.createElement('span');
+    badge.className = 'multi-badge';
+    badge.textContent = '×multi';
+    srcTd.appendChild(badge);
+  }
+
+  // ── Fecha cell ──
+  const fechaTd = document.createElement('td');
+  const fechaInput = document.createElement('input');
+  fechaInput.className = 'cell-edit';
+  fechaInput.value = row.fecha;
+  fechaInput.placeholder = 'DD/MM/YYYY';
+  fechaInput.addEventListener('change', () => {
+    rows.find(r => r.id === row.id).fecha = fechaInput.value;
+    updateStats();
+  });
+  fechaTd.appendChild(fechaInput);
+
+  // ── Folio cell ──
+  const folioTd = document.createElement('td');
+  const folioInput = document.createElement('input');
+  folioInput.className = 'cell-edit';
+  folioInput.value = row.folio;
+  folioInput.placeholder = '0000';
+  folioInput.style.width = '80px';
+  folioInput.addEventListener('change', () => {
+    rows.find(r => r.id === row.id).folio = folioInput.value;
+  });
+  folioTd.appendChild(folioInput);
+
+  // ── ECO select cell ──
+  const ecoTd = document.createElement('td');
+  const ecoColor = row.numero_economico === 'G-01' ? '#a78bfa' : row.numero_economico === 'G-02' ? '#34d399' : 'var(--muted)';
+  const ecoSel = document.createElement('select');
+  ecoSel.style.cssText = `background:var(--bg);border:none;border-bottom:1px solid transparent;color:${ecoColor};font-family:var(--mono);font-size:12px;outline:none;`;
+  // Blank option for when ECO is unknown
+  ['', 'G-01', 'G-02'].forEach(val => {
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = val || '— ?';
+    if (row.numero_economico === val) opt.selected = true;
+    ecoSel.appendChild(opt);
+  });
+  ecoSel.addEventListener('change', () => {
+    const r = rows.find(x => x.id === row.id);
+    r.numero_economico = ecoSel.value;
+    r.placas = TRUCKS[ecoSel.value]?.placas || '';
+    placaTd.textContent = r.placas;
+    ecoSel.style.color = ecoSel.value === 'G-01' ? '#a78bfa' : ecoSel.value === 'G-02' ? '#34d399' : 'var(--muted)';
+    updateStats();
+  });
+  ecoTd.appendChild(ecoSel);
+
+  // ── Placas cell ──
+  const placaTd = document.createElement('td');
+  placaTd.className = 'placa-cell';
+  placaTd.style.cssText = 'color:var(--muted);font-size:11px';
+  placaTd.textContent = row.placas;
+
+  // ── Tiro cell ──
+  const tiroTd = document.createElement('td');
+  tiroTd.innerHTML = `<span class="tiro-tag">${row.tiro.split('/')[0].trim()}</span>`;
+
+  // ── Confidence cell ──
+  const confTd = document.createElement('td');
+  confTd.innerHTML = row.confident
+    ? '<span class="conf-badge conf-high">✓ OK</span>'
+    : '<span class="conf-badge conf-low">⚠ Revisar</span>';
+
+  // ── Row number cell ──
+  const numTd = document.createElement('td');
+  numTd.style.cssText = 'color:var(--muted);width:28px';
+  numTd.textContent = rows.length;
+
+  tr.append(numTd, srcTd, fechaTd, folioTd, ecoTd, placaTd, tiroTd, confTd);
   tbody.appendChild(tr);
   updateStats();
 }
