@@ -166,8 +166,9 @@
   .conf-high { background: #052e16; color: var(--success); }
   .conf-low { background: #2a1800; color: var(--accent); border: 1px solid #5a3a00; }
 
-  .thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); transition: transform 0.15s; }
-  .thumb:hover { transform: scale(1.1); border-color: var(--accent); }
+  .thumb-wrap { width: 64px; height: 44px; overflow: hidden; border-radius: 4px; border: 1px solid var(--border); cursor: pointer; flex-shrink: 0; }
+  .thumb { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; transition: transform 0.15s; }
+  .thumb:hover { transform: scale(1.05); }
   .pdf-thumb { width: 36px; height: 36px; background: #300c0c; border: 1px solid #5f1e1e; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
 
   .cell-edit {
@@ -195,7 +196,7 @@
   .warn-note { font-size: 11px; color: var(--accent); display: flex; align-items: center; gap: 4px; margin-left: auto; }
 
   .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 100; display: flex; align-items: center; justify-content: center; cursor: zoom-out; }
-  .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 6px; }
+  .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 6px; object-fit: contain; }
   .lightbox.hidden { display: none; }
 
   .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 1rem; color: var(--muted); }
@@ -211,7 +212,10 @@
 
 <header>
   <div class="logo">G3 VOLTEOS <span>// Conciliador de Tickets</span></div>
-  <div class="header-meta" id="headerMeta">Listo para procesar</div>
+  <div style="display:flex;align-items:center;gap:1rem">
+    <span style="font-family:var(--mono);font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--accent);padding:2px 8px;border-radius:4px;letter-spacing:0.08em">v1</span>
+    <div class="header-meta" id="headerMeta">Listo para procesar</div>
+  </div>
 </header>
 
 <div class="app">
@@ -591,9 +595,9 @@ async function handleFiles(fileList) {
         entry.previewUrl = 'data:image/jpeg;base64,' + entry.pages[0];
       } catch(e) { entry.pageCount = 0; }
     } else if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
-      const url = URL.createObjectURL(f);
-      const b64 = await processImage(f);
-      uploadedFiles.push({ file: f, type: 'image', previewUrl: url, pages: [b64], pageCount: 1 });
+      const previewUrl = URL.createObjectURL(f);  // original file — for human display
+      const b64 = await processImage(f);           // processed — for API
+      uploadedFiles.push({ file: f, type: 'image', previewUrl, pages: [b64], pageCount: 1 });
     }
   }
   renderFileList();
@@ -789,22 +793,25 @@ ORIENTACIÓN: El ticket puede estar en cualquier orientación. Lee sin importar 
 
 CAMPOS A EXTRAER por cada ticket visible:
 
-1. FECHA: escrita a mano en formato D-M-AA sin ceros (ej: "1-4-26"=01/04/2026, "5-5-26"=05/05/2026). Año "26"=2026. Salida siempre DD/MM/YYYY.
+1. FECHA: escrita a mano en formato D-M-AA sin ceros (ej: "1-4-26"=01/04/2026, "5-5-26"=05/05/2026).
+   IMPORTANTE: a veces el año está incompleto o ilegible. Si ves solo un dígito al final (ej: "1-5-4") interpreta el año como 26. Si no ves el año, usa 26.
+   Salida siempre DD/MM/YYYY con año completo 2026.
 
 2. FOLIO: número impreso en rojo/naranja en un recuadro (4 dígitos). NO confundir con números escritos a mano.
 
-3. NUMERO_ECONOMICO: Busca el campo "CAMIÓN No. ECO:" — el valor es G-01 o G-02 escrito a mano.
-   VALIDACIÓN OBLIGATORIA con PLACAS:
-   - Si ves placas "VR-7129-C" → es G-01 (aunque el escrito parezca otro)
-   - Si ves placas "VS-4578-C" → es G-02 (aunque el escrito parezca otro)
-   - Las placas tienen prioridad sobre lo escrito en ECO si hay conflicto.
+3. NUMERO_ECONOMICO + PLACAS — proceso de dos pasos:
+   Paso 1: Lee el campo "CAMIÓN No. ECO:" — anota lo que ves (G-01 o G-02).
+   Paso 2: Lee el campo "PLACAS:" — este campo es más legible. Úsalo para confirmar o corregir:
+   - Placas "VR-7129-C" → numero_economico debe ser "G-01"
+   - Placas "VS-4578-C" → numero_economico debe ser "G-02"
+   Las placas SIEMPRE ganan. Incluye la placa leída en el JSON.
 
 PUEDE HABER VARIOS tickets en una imagen. Extrae TODOS.
 
-confident=false si: fecha ilegible, folio ilegible, o no puedes ver las placas para confirmar el número económico.
+confident=false si: fecha ilegible, folio ilegible, o no puedes leer las placas con claridad.
 
 JSON únicamente — sin texto extra:
-{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","confident":true}]}
+{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","placas":"VS-4578-C","confident":true}]}
 Sin tickets: {"tickets":[]}`;
 
   try {
@@ -855,9 +862,19 @@ Sin tickets: {"tickets":[]}`;
     const previewUrl = unit.entry.previewUrl;
 
     tickets.forEach(t => {
-      const eco = (t.numero_economico || '').trim();
-      const placas = eco.toUpperCase().includes('G-01') ? 'VR-7129-C'
-                   : eco.toUpperCase().includes('G-02') ? 'VS-4578-C' : '';
+      // Double validation: placas field overrides ECO field
+      const placasLeidas = (t.placas || '').trim().toUpperCase();
+      let eco = (t.numero_economico || '').trim();
+      let placas = '';
+
+      if (placasLeidas.includes('VR-7129') || placasLeidas.includes('VR7129')) {
+        eco = 'G-01'; placas = 'VR-7129-C';
+      } else if (placasLeidas.includes('VS-4578') || placasLeidas.includes('VS4578')) {
+        eco = 'G-02'; placas = 'VS-4578-C';
+      } else {
+        // Fallback: derive placas from ECO
+        placas = eco.includes('G-01') ? 'VR-7129-C' : eco.includes('G-02') ? 'VS-4578-C' : '';
+      }
       const row = {
         id: rowCounter++,
         previewUrl: unit.entry.type === 'pdf' ? null : previewUrl,
@@ -893,7 +910,10 @@ function renderRow(row) {
 
   const thumbHtml = row.isPdf
     ? `<div class="pdf-thumb">📄</div>`
-    : `<img class="thumb" src="${row.previewUrl}" onclick="openLightbox('${row.previewUrl}')">`;
+    : `<div class="thumb-wrap" onclick="openLightbox('${row.previewUrl}')">
+        <img class="thumb" src="${row.previewUrl}" id="thumb-${row.id}"
+          onload="fixThumbOrientation(this)">
+       </div>`;
 
   const multiHtml = row.multiTicket ? `<span class="multi-badge">×multi</span>` : '';
   const sourceClass = row.isPdf ? 'pdf-tag' : '';
@@ -1058,8 +1078,39 @@ async function exportExcel() {
   XLSX.writeFile(wb, fileName, { cellStyles:true, bookType:'xlsx' });
 }
 
+function fixThumbOrientation(img) {
+  // If image is portrait (taller than wide), rotate it 90° with CSS to show landscape
+  if (img.naturalHeight > img.naturalWidth) {
+    const wrap = img.parentElement;
+    const wrapW = wrap.offsetWidth || 64;
+    const wrapH = wrap.offsetHeight || 44;
+    // Scale so the rotated image fills the wrap
+    const scale = Math.min(wrapW / img.naturalHeight, wrapH / img.naturalWidth);
+    img.style.width  = img.naturalWidth  * scale + 'px';
+    img.style.height = img.naturalHeight * scale + 'px';
+    img.style.transform = `rotate(90deg) translateX(-50%)`;
+    img.style.transformOrigin = 'top left';
+    img.style.position = 'absolute';
+    img.style.top = '50%';
+    img.style.left = '50%';
+    img.style.marginLeft = `-${img.naturalWidth * scale / 2}px`;
+    img.style.marginTop  = `-${img.naturalHeight * scale / 2}px`;
+    wrap.style.position = 'relative';
+  }
+}
+
 function openLightbox(src) {
-  document.getElementById('lightboxImg').src = src;
+  const lbImg = document.getElementById('lightboxImg');
+  lbImg.src = src;
+  lbImg.style.transform = '';
+  lbImg.onload = () => {
+    // If portrait, rotate 90° in lightbox too
+    if (lbImg.naturalHeight > lbImg.naturalWidth) {
+      lbImg.style.maxWidth  = '90vh';
+      lbImg.style.maxHeight = '90vw';
+      lbImg.style.transform = 'rotate(90deg)';
+    }
+  };
   document.getElementById('lightbox').classList.remove('hidden');
 }
 
