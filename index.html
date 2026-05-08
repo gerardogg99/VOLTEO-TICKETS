@@ -166,10 +166,11 @@
   .conf-high { background: #052e16; color: var(--success); }
   .conf-low { background: #2a1800; color: var(--accent); border: 1px solid #5a3a00; }
 
-  .thumb-wrap { width: 64px; height: 44px; overflow: hidden; border-radius: 4px; border: 1px solid var(--border); cursor: pointer; flex-shrink: 0; }
-  .thumb { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; transition: transform 0.15s; }
-  .thumb:hover { transform: scale(1.05); }
+  .thumb-wrap { width: 64px; height: 44px; overflow: hidden; border-radius: 4px; border: 1px solid var(--border); flex-shrink: 0; position: relative; }
+  .thumb { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
   .pdf-thumb { width: 36px; height: 36px; background: #300c0c; border: 1px solid #5f1e1e; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .rotate-btn { font-size: 10px; background: transparent; border: none; color: var(--muted); cursor: pointer; padding: 0 2px; line-height: 1; }
+  .rotate-btn:hover { color: var(--accent); }
 
   .cell-edit {
     background: transparent; border: none; border-bottom: 1px solid transparent;
@@ -213,7 +214,7 @@
 <header>
   <div class="logo">G3 VOLTEOS <span>// Conciliador de Tickets</span></div>
   <div style="display:flex;align-items:center;gap:1rem">
-    <span style="font-family:var(--mono);font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--accent);padding:2px 8px;border-radius:4px;letter-spacing:0.08em">v1</span>
+    <span style="font-family:var(--mono);font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--accent);padding:2px 8px;border-radius:4px;letter-spacing:0.08em">v2</span>
     <div class="header-meta" id="headerMeta">Listo para procesar</div>
   </div>
 </header>
@@ -221,29 +222,23 @@
 <div class="app">
   <aside class="sidebar">
 
+    <!-- Token de acceso — guardado en localStorage, nunca en el código -->
     <div>
-      <div class="section-label">🔑 API Key de Anthropic</div>
+      <div class="section-label">🔑 Acceso</div>
       <div class="config-block">
         <div class="field-group">
-          <label>API KEY <span style="color:var(--danger)">*</span></label>
+          <label>TOKEN DE APP</label>
           <div style="position:relative">
-            <input type="password" id="cfgApiKey" placeholder="sk-ant-api03-..." oninput="onKeyInput(this)"
-              style="padding-right:36px">
-            <span onclick="toggleKeyVis()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);font-size:13px" id="eyeIcon">👁</span>
+            <input type="password" id="cfgAppToken" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              style="padding-right:36px;font-size:11px"
+              oninput="localStorage.setItem('g3_app_token',this.value.trim());checkReady()">
+            <span onclick="const i=document.getElementById('cfgAppToken');i.type=i.type==='password'?'text':'password'"
+              style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);font-size:13px">👁</span>
           </div>
           <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">
-            Obtén la tuya en <span style="color:var(--accent2)">platform.anthropic.com</span><br>
-            Se guarda solo en tu navegador, nunca se sube.
+            Guardado solo en tu navegador.<br>Debe coincidir con <code style="color:var(--accent2)">APP_TOKEN</code> en el Worker.
           </div>
         </div>
-        <div class="field-group">
-          
-          <select id="cfgModel" style="display:none">
-            
-            <option value="claude-sonnet-4-5-20250929" selected>Sonnet 4.5</option>
-          </select>
-        </div>
-        <div id="keyStatus" style="display:none;font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:5px;margin-top:4px"></div>
       </div>
     </div>
 
@@ -357,38 +352,18 @@ const GDRIVE_CLIENT_ID = ''; // Set your Google OAuth client ID here if using Dr
 const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 let gapiReady = false;
 
-// ── API KEY HELPERS ──
-function getKey() { return document.getElementById('cfgApiKey').value.trim(); }
-function getModel() { return document.getElementById('cfgModel').value; }
 
-function onKeyInput(el) {
-  const val = el.value.trim();
-  const status = document.getElementById('keyStatus');
-  localStorage.setItem('g3_api_key', val);
-  if (!val) { status.style.display='none'; return; }
-  if (val.startsWith('sk-ant-')) {
-    status.style.display='block';
-    status.style.background='#052e16'; status.style.color='var(--success)';
-    status.textContent='✓ Formato válido — lista para usar';
-  } else {
-    status.style.display='block';
-    status.style.background='#2a1800'; status.style.color='var(--accent)';
-    status.textContent='⚠ Debe empezar con sk-ant-...';
-  }
-  checkReady();
+function checkReady() {
+  const hasFiles = uploadedFiles.length > 0;
+  document.getElementById('btnProcess').disabled = !hasFiles;
 }
 
-function toggleKeyVis() {
-  const inp = document.getElementById('cfgApiKey');
-  const eye = document.getElementById('eyeIcon');
-  if (inp.type==='password') { inp.type='text'; eye.textContent='🙈'; }
-  else { inp.type='password'; eye.textContent='👁'; }
-}
-
-// Restore saved key on load
+// Restore saved settings on load
 window.addEventListener('load', () => {
-  const saved = localStorage.getItem('g3_api_key');
-  if (saved) { document.getElementById('cfgApiKey').value = saved; onKeyInput(document.getElementById('cfgApiKey')); }
+  // Restore app token
+  const savedToken = localStorage.getItem('g3_app_token');
+  if (savedToken) document.getElementById('cfgAppToken').value = savedToken;
+
   const gcid = localStorage.getItem('g3_gcid');
   if (gcid) {
     showGdriveClientIdField();
@@ -412,7 +387,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let excelData = null;
 let excelFileName = "Conciliaciones_Semanales.xlsx";
-let uploadedFiles = []; // {file, type:'image'|'pdf', previewUrl, pages:[base64,...]}
+let uploadedFiles = []; // {id, file, type:'image'|'pdf', previewUrl, pages:[base64,...]}
+let fileCounter = 0;   // stable IDs for uploadedFiles (separate from rowCounter)
 let rows = [];
 let processing = false;
 let rowCounter = 0;
@@ -571,7 +547,7 @@ async function handleFiles(fileList) {
   const newFiles = [...fileList];
   for (const f of newFiles) {
     if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
-      const entry = { file: f, type: 'pdf', previewUrl: null, pages: [], pageCount: 0 };
+      const entry = { id: fileCounter++, file: f, type: 'pdf', previewUrl: null, pages: [], pageCount: 0 };
       uploadedFiles.push(entry);
       // render PDF pages to images via canvas
       try {
@@ -597,7 +573,7 @@ async function handleFiles(fileList) {
     } else if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
       const previewUrl = URL.createObjectURL(f);  // original file — for human display
       const b64 = await processImage(f);           // processed — for API
-      uploadedFiles.push({ file: f, type: 'image', previewUrl, pages: [b64], pageCount: 1 });
+      uploadedFiles.push({ id: fileCounter++, file: f, type: 'image', previewUrl, pages: [b64], pageCount: 1 });
     }
   }
   renderFileList();
@@ -607,7 +583,7 @@ async function handleFiles(fileList) {
 function renderFileList() {
   const el = document.getElementById('fileList');
   el.innerHTML = '';
-  uploadedFiles.forEach((entry, idx) => {
+  uploadedFiles.forEach((entry) => {
     const div = document.createElement('div');
     div.className = 'file-item';
     const icon = entry.type === 'pdf' ? '📄' : '🖼️';
@@ -615,7 +591,8 @@ function renderFileList() {
     div.innerHTML = `<span class="fi-icon">${icon}</span>
       <span class="fi-name">${entry.file.name}</span>
       ${extra}
-      <span class="fi-remove" onclick="removeFile(${idx})">✕</span>`;
+      <span class="fi-remove" data-fid="${entry.id}">✕</span>`;
+    div.querySelector('.fi-remove').addEventListener('click', () => removeFile(entry.id));
     el.appendChild(div);
   });
   const total = uploadedFiles.reduce((s,e)=>s+e.pages.length,0);
@@ -625,8 +602,12 @@ function renderFileList() {
   }
 }
 
-function removeFile(idx) {
-  uploadedFiles.splice(idx, 1);
+function removeFile(fileId) {
+  const idx = uploadedFiles.findIndex(f => f.id === fileId);
+  if (idx !== -1) {
+    if (uploadedFiles[idx].previewUrl) URL.revokeObjectURL(uploadedFiles[idx].previewUrl);
+    uploadedFiles.splice(idx, 1);
+  }
   renderFileList();
   checkReady();
 }
@@ -642,14 +623,16 @@ function loadExcel(input) {
   checkReady();
 }
 
+
 function checkReady() {
-  const hasKey = getKey().startsWith('sk-ant-');
+  const hasToken = getAppToken().length > 10;
   const hasFiles = uploadedFiles.length > 0;
-  document.getElementById('btnProcess').disabled = !(hasKey && hasFiles);
-  if (!hasKey && hasFiles) {
-    document.getElementById('btnProcess').title = 'Necesitas ingresar tu API key primero';
-  }
+  document.getElementById('btnProcess').disabled = !(hasToken && hasFiles);
+  if (!hasToken) document.getElementById('btnProcess').title = 'Ingresa el token de acceso primero';
+  else if (!hasFiles) document.getElementById('btnProcess').title = 'Sube al menos una imagen primero';
+  else document.getElementById('btnProcess').title = '';
 }
+
 
 function fileToBase64(file) {
   return new Promise((res, rej) => {
@@ -668,7 +651,7 @@ function processImage(file) {
     img.onload = () => {
       const srcW = img.naturalWidth;
       const srcH = img.naturalHeight;
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(url); // revoke once, here
 
       if (srcH <= srcW) {
         // Already landscape — send original file untouched (best quality)
@@ -686,20 +669,47 @@ function processImage(file) {
       ctx.drawImage(img, 0, 0, srcW, srcH);
       res(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
     };
-    img.onerror = rej;
-    img.src = URL.createObjectURL(file);
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Image load failed')); };
+    img.src = url; // reuse same URL — no leak
   });
+}
+
+// ── GLOBAL CONFIG ──
+const TRUCKS = {
+  'G-01': { placas: 'VR-7129-C', patterns: ['VR-7129', 'VR7129', 'VR712', '7129'] },
+  'G-02': { placas: 'VS-4578-C', patterns: ['VS-4578', 'VS4578', 'VS457', '4578'] },
+};
+
+// ── DATE HELPERS — moved to global scope ──
+function buildFechasList(inicio, fin) {
+  const dias = [];
+  const d = new Date(inicio + 'T00:00:00');
+  const end = new Date(fin + 'T00:00:00');
+  while (d <= end) {
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const yyyy = d.getFullYear();
+    dias.push(`${dd}/${mm}/${yyyy}`);
+    d.setDate(d.getDate()+1);
+  }
+  return dias;
+}
+
+// Normalize a raw plate string to canonical form using TRUCKS config
+function normalizePlacas(raw) {
+  const up = (raw || '').toUpperCase().replace(/\s/g,'');
+  for (const [eco, cfg] of Object.entries(TRUCKS)) {
+    if (cfg.patterns.some(p => up.includes(p))) return { eco, placas: cfg.placas };
+  }
+  return null;
 }
 
 // ── MAIN PROCESSING ──
 async function startProcessing() {
   if (processing || uploadedFiles.length === 0) return;
-  if (!getKey().startsWith('sk-ant-')) {
-    alert('Por favor ingresa tu API key de Anthropic antes de procesar.');
-    document.getElementById('cfgApiKey').focus();
-    return;
-  }
   processing = true; rows = []; rowCounter = 0;
+  // Clear thumb rotation state from any previous run
+  Object.keys(thumbRotation).forEach(k => delete thumbRotation[k]);
 
   const btn = document.getElementById('btnProcess');
   btn.disabled = true; btn.classList.add('running');
@@ -755,6 +765,41 @@ async function startProcessing() {
   finalize();
 }
 
+// ── TWO-STEP API CALL ──
+function getAppToken() {
+  return localStorage.getItem('g3_app_token') || '';
+}
+
+async function callWorker(messages, maxTokens = 800) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-app-token': getAppToken(),
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: maxTokens,
+        messages,
+      })
+    });
+    clearTimeout(timeout);
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`API ${resp.status}: ${errText.substring(0,120)}`);
+    }
+    const data = await resp.json();
+    return (data.content?.[0]?.text || '').trim();
+  } catch(e) {
+    clearTimeout(timeout);
+    throw e;
+  }
+}
+
 async function processUnit(unit) {
   const log = document.getElementById('plog');
   const label = unit.isPdf
@@ -763,139 +808,140 @@ async function processUnit(unit) {
 
   addLog(log, `🔍 Analizando ${label}...`, 'info');
 
-  // Build date range context — generate explicit list of valid dates
   const fechaInicio = document.getElementById('cfgFechaInicio').value;
   const fechaFin    = document.getElementById('cfgFechaFin').value;
+  const rangoStr = (fechaInicio && fechaFin)
+    ? `FECHAS VÁLIDAS ESTA SEMANA: ${buildFechasList(fechaInicio, fechaFin).join(', ')}`
+    : '';
 
-  function buildFechasList(inicio, fin) {
-    const dias = [];
-    const d = new Date(inicio + 'T00:00:00');
-    const end = new Date(fin + 'T00:00:00');
-    const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    while (d <= end) {
-      const dd = String(d.getDate()).padStart(2,'0');
-      const mm = String(d.getMonth()+1).padStart(2,'0');
-      const yyyy = d.getFullYear();
-      dias.push(`${dd}/${mm}/${yyyy}`);
-      d.setDate(d.getDate()+1);
-    }
-    return dias;
+  // ── PASO 1: Lectura bruta — Claude describe lo que ve, sin formatear ──
+  const promptLectura = `Eres un lector experto de tickets de volteo de arena (empresa G3 Volteos, México).
+
+Observa la imagen con cuidado. Puede haber UNO o VARIOS tickets.
+
+Para CADA ticket que veas, describe EXACTAMENTE lo que lees en cada campo, sin interpretar ni corregir:
+
+TICKET [N]:
+- FECHA_BRUTA: (escribe los dígitos exactos que ves escritos a mano, ej: "1-4-26", "5 5 26", "3/4/26")
+- FOLIO_BRUTO: (número impreso en rojo/naranja en recuadro, ej: "0984". Solo el impreso, no el manuscrito)
+- ECO_BRUTO: (lo que dice el campo "CAMIÓN No. ECO:", ej: "G-01", "G01", "G-02")
+- PLACAS_BRUTAS: (lo que dice el campo "PLACAS:", ej: "VR-7129-C", "VS4578C", "VR 7129")
+- LEGIBILIDAD: (CLARA / PARCIAL / ILEGIBLE — para cada campo)
+
+Si no hay tickets visibles, escribe: SIN TICKETS`;
+
+  let lectura = '';
+  try {
+    lectura = await callWorker([{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: unit.b64 } },
+        { type: 'text', text: promptLectura }
+      ]
+    }], 600);
+  } catch(e) {
+    addLog(log, `✗ ${label}: Error paso 1 — ${e.message}`, 'err');
+    return;
   }
 
-  const rangoStr = (fechaInicio && fechaFin) ? (() => {
-    const lista = buildFechasList(fechaInicio, fechaFin);
-    return `\nFECHAS VÁLIDAS — esta semana SOLO puede contener estas fechas exactas:\n${lista.join(', ')}\nLa fecha del ticket DEBE ser una de estas. Si lo que lees no coincide exactamente con alguna de ellas, elige la más cercana y pon confident=false. NUNCA escribas una fecha que no esté en esta lista.`;
-  })() : '';
+  if (lectura.includes('SIN TICKETS')) {
+    addLog(log, `⚠ ${label}: sin tickets detectados`, 'warn');
+    return;
+  }
 
-  const prompt = `Eres un extractor de datos de tickets de volteo de arena en México (empresa G3 Volteos).
+  // ── PASO 2: Validación y formato — Claude aplica reglas de negocio ──
+  const promptFormato = `Eres un validador de datos de tickets de volteo. 
+Recibes una lectura bruta y debes producir el JSON final aplicando estas reglas:
 
-ORIENTACIÓN: El ticket puede estar en cualquier orientación. Lee sin importar la rotación. Busca el logo "RCA" para orientarte.${rangoStr}
+LECTURA BRUTA:
+${lectura}
 
-CAMPOS A EXTRAER por cada ticket visible:
+REGLAS DE NEGOCIO:
+1. FECHA: el formato original es D-M-AA (día-mes-año corto, sin ceros).
+   Convierte siempre a DD/MM/YYYY con año 20XX.
+   Ejemplos: "1-4-26"→"01/04/2026", "5 5 26"→"05/05/2026", "3/4/26"→"03/04/2026"
+   Si el año no está visible, asume 26 (→2026).
+   ${rangoStr ? rangoStr + '\n   Si la fecha no coincide con ninguna válida, elige la más cercana y pon confident=false.' : ''}
 
-1. FECHA: escrita a mano en formato D-M-AA sin ceros (ej: "1-4-26"=01/04/2026, "5-5-26"=05/05/2026).
-   IMPORTANTE: a veces el año está incompleto o ilegible. Si ves solo un dígito al final (ej: "1-5-4") interpreta el año como 26. Si no ves el año, usa 26.
-   Salida siempre DD/MM/YYYY con año completo 2026.
+2. FOLIO: usa SOLO el número impreso (rojo/naranja en recuadro). 4 dígitos con ceros a la izquierda.
+   Si no hay folio impreso visible → folio: ""
 
-2. FOLIO: número impreso en rojo/naranja en un recuadro (4 dígitos). NO confundir con números escritos a mano.
+3. PLACAS y ECO — las placas mandan siempre:
+   - Si placas contienen "7129" o "VR-7129" → eco="G-01", placas="VR-7129-C"
+   - Si placas contienen "4578" o "VS-4578" → eco="G-02", placas="VS-4578-C"
+   - Si placas ilegibles pero eco dice "G-01" → placas="VR-7129-C" (con confident=false)
+   - Si placas ilegibles pero eco dice "G-02" → placas="VS-4578-C" (con confident=false)
 
-3. NUMERO_ECONOMICO + PLACAS — proceso de dos pasos:
-   Paso 1: Lee el campo "CAMIÓN No. ECO:" — anota lo que ves (G-01 o G-02).
-   Paso 2: Lee el campo "PLACAS:" — este campo es más legible. Úsalo para confirmar o corregir:
-   - Placas "VR-7129-C" → numero_economico debe ser "G-01"
-   - Placas "VS-4578-C" → numero_economico debe ser "G-02"
-   Las placas SIEMPRE ganan. Incluye la placa leída en el JSON.
+4. confident=false si CUALQUIERA de estos es cierto:
+   - fecha ilegible o no coincide con el rango válido
+   - folio ilegible
+   - placas ilegibles (aunque se haya inferido por eco)
 
-PUEDE HABER VARIOS tickets en una imagen. Extrae TODOS.
-
-confident=false si: fecha ilegible, folio ilegible, o no puedes leer las placas con claridad.
-
-JSON únicamente — sin texto extra:
+Responde ÚNICAMENTE con JSON, sin texto adicional:
 {"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","placas":"VS-4578-C","confident":true}]}
 Sin tickets: {"tickets":[]}`;
 
+  let raw = '';
   try {
-    let resp;
-    try {
-      resp = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': getKey(), 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({
-          model: getModel(),
-          max_tokens: 800,
-          messages: [{ role: 'user', content: [
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: unit.b64 } },
-            { type: 'text', text: prompt }
-          ]}]
-        })
-      });
-    } catch(fetchErr) {
-      // Network/CORS error — show details
-      addLog(log, `✗ ${label}: Error de red — ${fetchErr.message}. Verifica que el Worker esté activo.`, 'err');
-      console.error('Fetch error:', fetchErr);
-      return;
-    }
-
-    if (!resp.ok) {
-      const errText = await resp.text();
-      addLog(log, `✗ ${label}: API respondió ${resp.status} — ${errText.substring(0,100)}`, 'err');
-      return;
-    }
-    const data = await resp.json();
-    const raw = (data.content?.[0]?.text || '{}').trim().replace(/```json|```/g,'');
-    let parsed;
-    try { parsed = JSON.parse(raw); } catch { parsed = { tickets: [] }; }
-
-    const tickets = Array.isArray(parsed.tickets) ? parsed.tickets : [];
-
-    if (tickets.length === 0) {
-      addLog(log, `⚠ ${label}: sin tickets detectados`, 'warn');
-      return;
-    }
-
-    const multi = tickets.length > 1;
-    if (multi) addLog(log, `📦 ${label}: ${tickets.length} tickets en una imagen`, 'info');
-
-    const tiro = document.getElementById('cfgTiro').value;
-    const servicio = document.getElementById('cfgServicio').value;
-    const capacidad = document.getElementById('cfgCapacidad').value;
-    const previewUrl = unit.entry.previewUrl;
-
-    tickets.forEach(t => {
-      // Double validation: placas field overrides ECO field
-      const placasLeidas = (t.placas || '').trim().toUpperCase();
-      let eco = (t.numero_economico || '').trim();
-      let placas = '';
-
-      if (placasLeidas.includes('VR-7129') || placasLeidas.includes('VR7129')) {
-        eco = 'G-01'; placas = 'VR-7129-C';
-      } else if (placasLeidas.includes('VS-4578') || placasLeidas.includes('VS4578')) {
-        eco = 'G-02'; placas = 'VS-4578-C';
-      } else {
-        // Fallback: derive placas from ECO
-        placas = eco.includes('G-01') ? 'VR-7129-C' : eco.includes('G-02') ? 'VS-4578-C' : '';
-      }
-      const row = {
-        id: rowCounter++,
-        previewUrl: unit.entry.type === 'pdf' ? null : previewUrl,
-        isPdf: unit.isPdf,
-        sourceName: label,
-        multiTicket: multi,
-        fecha: t.fecha || '',
-        folio: t.folio || '',
-        numero_economico: eco,
-        placas, tiro, servicio, capacidad,
-        confident: t.confident !== false
-      };
-      rows.push(row);
-      renderRow(row);
-      addLog(log, `${row.confident?'✓':'⚠'} Folio ${row.folio||'?'} | ${row.numero_economico||'?'} | ${row.fecha||'?'}`,
-        row.confident ? 'ok' : 'warn');
-    });
-
+    raw = await callWorker([{ role: 'user', content: promptFormato }], 500);
   } catch(e) {
-    addLog(log, `✗ Error en ${label}: ${e.message}`, 'err');
+    addLog(log, `✗ ${label}: Error paso 2 — ${e.message}`, 'err');
+    return;
   }
+
+  // Robust JSON extraction
+  const jsonMatch = raw.replace(/```json|```/g,'').match(/\{[\s\S]*\}/);
+  let parsed;
+  try { parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { tickets: [] }; }
+  catch { parsed = { tickets: [] }; }
+
+  const tickets = Array.isArray(parsed.tickets) ? parsed.tickets : [];
+
+  if (tickets.length === 0) {
+    addLog(log, `⚠ ${label}: sin tickets en resultado`, 'warn');
+    return;
+  }
+
+  const multi = tickets.length > 1;
+  if (multi) addLog(log, `📦 ${label}: ${tickets.length} tickets en una imagen`, 'info');
+
+  const tiro     = document.getElementById('cfgTiro').value;
+  const servicio = document.getElementById('cfgServicio').value;
+  const capacidad= document.getElementById('cfgCapacidad').value;
+
+  tickets.forEach(t => {
+    // Final normalization using TRUCKS config
+    const norm = normalizePlacas(t.placas);
+    let eco, placas, confident = t.confident !== false;
+
+    if (norm) {
+      eco    = norm.eco;
+      placas = norm.placas;
+    } else {
+      // placas ilegibles — derive from eco field
+      eco    = (t.numero_economico || '').trim();
+      placas = TRUCKS[eco]?.placas || '';
+      if (!placas) confident = false; // truly unknown
+    }
+
+    const row = {
+      id: rowCounter++,
+      previewUrl: unit.entry.type === 'pdf' ? null : unit.entry.previewUrl,
+      isPdf: unit.isPdf,
+      sourceName: label,
+      multiTicket: multi,
+      fecha: t.fecha || '',
+      folio: t.folio || '',
+      numero_economico: eco,
+      placas, tiro, servicio, capacidad,
+      confident,
+    };
+    rows.push(row);
+    renderRow(row);
+    addLog(log,
+      `${row.confident?'✓':'⚠'} Folio ${row.folio||'?'} | ${row.numero_economico||'?'} | ${row.fecha||'?'}`,
+      row.confident ? 'ok' : 'warn');
+  });
 }
 
 function renderRow(row) {
@@ -910,9 +956,14 @@ function renderRow(row) {
 
   const thumbHtml = row.isPdf
     ? `<div class="pdf-thumb">📄</div>`
-    : `<div class="thumb-wrap" onclick="openLightbox('${row.previewUrl}')">
-        <img class="thumb" src="${row.previewUrl}" id="thumb-${row.id}"
-          onload="fixThumbOrientation(this)">
+    : `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+        <div class="thumb-wrap" id="twrap-${row.id}" onclick="openLightbox('${row.previewUrl}', ${row.id})">
+          <img class="thumb" src="${row.previewUrl}" id="thumb-${row.id}" onload="fixThumbOrientation(this,${row.id})">
+        </div>
+        <div style="display:flex;gap:0">
+          <button class="rotate-btn" onclick="rotateThumb(${row.id},-90)" title="Rotar izq">↺</button>
+          <button class="rotate-btn" onclick="rotateThumb(${row.id},90)" title="Rotar der">↻</button>
+        </div>
        </div>`;
 
   const multiHtml = row.multiTicket ? `<span class="multi-badge">×multi</span>` : '';
@@ -1078,45 +1129,71 @@ async function exportExcel() {
   XLSX.writeFile(wb, fileName, { cellStyles:true, bookType:'xlsx' });
 }
 
-function fixThumbOrientation(img) {
-  // If image is portrait (taller than wide), rotate it 90° with CSS to show landscape
+// Per-row rotation state (degrees)
+const thumbRotation = {};
+
+function fixThumbOrientation(img, rowId) {
+  // If portrait, start at 90° CW so it shows landscape
   if (img.naturalHeight > img.naturalWidth) {
-    const wrap = img.parentElement;
-    const wrapW = wrap.offsetWidth || 64;
-    const wrapH = wrap.offsetHeight || 44;
-    // Scale so the rotated image fills the wrap
-    const scale = Math.min(wrapW / img.naturalHeight, wrapH / img.naturalWidth);
-    img.style.width  = img.naturalWidth  * scale + 'px';
-    img.style.height = img.naturalHeight * scale + 'px';
-    img.style.transform = `rotate(90deg) translateX(-50%)`;
-    img.style.transformOrigin = 'top left';
-    img.style.position = 'absolute';
-    img.style.top = '50%';
-    img.style.left = '50%';
-    img.style.marginLeft = `-${img.naturalWidth * scale / 2}px`;
-    img.style.marginTop  = `-${img.naturalHeight * scale / 2}px`;
-    wrap.style.position = 'relative';
+    thumbRotation[rowId] = 90;
+  } else {
+    thumbRotation[rowId] = 0;
   }
+  applyThumbRotation(rowId);
 }
 
-function openLightbox(src) {
+function rotateThumb(rowId, delta) {
+  thumbRotation[rowId] = ((thumbRotation[rowId] || 0) + delta + 360) % 360;
+  applyThumbRotation(rowId);
+}
+
+function applyThumbRotation(rowId) {
+  const deg = thumbRotation[rowId] || 0;
+  const img = document.getElementById(`thumb-${rowId}`);
+  const wrap = document.getElementById(`twrap-${rowId}`);
+  if (!img || !wrap) return;
+
+  const wW = 64, wH = 44;
+  const iW = img.naturalWidth, iH = img.naturalHeight;
+  const swapped = deg === 90 || deg === 270;
+
+  // Scale to fill the wrap after rotation
+  const scale = swapped
+    ? Math.min(wW / iH, wH / iW)
+    : Math.min(wW / iW, wH / iH);
+
+  img.style.width  = Math.round(iW * scale) + 'px';
+  img.style.height = Math.round(iH * scale) + 'px';
+  img.style.objectFit = 'cover';
+  img.style.position = 'absolute';
+  img.style.top  = '50%';
+  img.style.left = '50%';
+  img.style.transform = `translate(-50%, -50%) rotate(${deg}deg)`;
+}
+
+function openLightbox(src, rowId) {
   const lbImg = document.getElementById('lightboxImg');
   lbImg.src = src;
   lbImg.style.transform = '';
+  lbImg.style.maxWidth  = '';
+  lbImg.style.maxHeight = '';
   lbImg.onload = () => {
-    // If portrait, rotate 90° in lightbox too
-    if (lbImg.naturalHeight > lbImg.naturalWidth) {
-      lbImg.style.maxWidth  = '90vh';
-      lbImg.style.maxHeight = '90vw';
-      lbImg.style.transform = 'rotate(90deg)';
+    const deg = thumbRotation[rowId] || 0;
+    if (deg) {
+      const swapped = deg === 90 || deg === 270;
+      lbImg.style.maxWidth  = swapped ? '90vh' : '90vw';
+      lbImg.style.maxHeight = swapped ? '90vw' : '90vh';
+      lbImg.style.transform = `rotate(${deg}deg)`;
     }
   };
   document.getElementById('lightbox').classList.remove('hidden');
 }
 
 function clearAll() {
-  uploadedFiles = []; rows = []; rowCounter = 0; excelData = null;
-  document.getElementById('excelName').textContent = 'Subir Conciliaciones.xlsx';
+  // Revoke any existing blob URLs to free memory
+  uploadedFiles.forEach(e => { if (e.previewUrl && e.previewUrl.startsWith('blob:')) URL.revokeObjectURL(e.previewUrl); });
+  uploadedFiles = []; rows = []; rowCounter = 0; fileCounter = 0; excelData = null;
+  Object.keys(thumbRotation).forEach(k => delete thumbRotation[k]);
   document.getElementById('fileList').innerHTML = '';
   document.querySelector('.upload-text').innerHTML =
     '<strong>Arrastra aquí</strong> o haz clic<br>Fotos de tickets';
