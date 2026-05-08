@@ -6,7 +6,7 @@
 <title>G3 Volteos – Captura de Tickets</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
 <style>
   :root {
     --bg: #0f1117;
@@ -56,7 +56,8 @@
   .field-group { margin-bottom: 0.5rem; }
   .field-group:last-child { margin-bottom: 0; }
 
-  /* UPLOAD ZONE — accepts images + PDFs */
+
+
   .upload-zone {
     border: 2px dashed var(--border); border-radius: 10px;
     padding: 1rem; text-align: center; cursor: pointer;
@@ -75,7 +76,8 @@
     border-radius: 4px; border: 1px solid;
   }
   .pill-img { color: #60a5fa; border-color: #1e3a5f; background: #0c1a30; }
-  .pill-pdf { color: #f87171; border-color: #5f1e1e; background: #300c0c; }
+
+
 
   /* file list */
   .file-list { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; }
@@ -160,7 +162,7 @@
     margin-left: 4px; vertical-align: middle;
   }
   .source-tag { font-size: 10px; color: var(--muted); }
-  .pdf-tag { color: #f87171; }
+
 
   .conf-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; }
   .conf-high { background: #052e16; color: var(--success); }
@@ -168,7 +170,8 @@
 
   .thumb-wrap { width: 64px; height: 44px; overflow: hidden; border-radius: 4px; border: 1px solid var(--border); flex-shrink: 0; position: relative; }
   .thumb { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
-  .pdf-thumb { width: 36px; height: 36px; background: #300c0c; border: 1px solid #5f1e1e; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+
+
   .rotate-btn { font-size: 10px; background: transparent; border: none; color: var(--muted); cursor: pointer; padding: 0 2px; line-height: 1; }
   .rotate-btn:hover { color: var(--accent); }
 
@@ -214,7 +217,7 @@
 <header>
   <div class="logo">G3 VOLTEOS <span>// Conciliador de Tickets</span></div>
   <div style="display:flex;align-items:center;gap:1rem">
-    <span style="font-family:var(--mono);font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--accent);padding:2px 8px;border-radius:4px;letter-spacing:0.08em">v2</span>
+    <span id="versionBadge" style="font-family:var(--mono);font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--accent);padding:2px 8px;border-radius:4px;letter-spacing:0.08em"></span>
     <div class="header-meta" id="headerMeta">Listo para procesar</div>
   </div>
 </header>
@@ -342,9 +345,7 @@
 </div>
 
 <script>
-// ── PDF.js worker ──
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
+const APP_VERSION = 'v4';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
@@ -360,7 +361,8 @@ function checkReady() {
 
 // Restore saved settings on load
 window.addEventListener('load', () => {
-  // Restore app token
+  document.getElementById('versionBadge').textContent = APP_VERSION;
+
   const savedToken = localStorage.getItem('g3_app_token');
   if (savedToken) document.getElementById('cfgAppToken').value = savedToken;
 
@@ -387,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let excelData = null;
 let excelFileName = "Conciliaciones_Semanales.xlsx";
-let uploadedFiles = []; // {id, file, type:'image'|'pdf', previewUrl, pages:[base64,...]}
+let uploadedFiles = []; // {id, file, type:'image', previewUrl, pages:[base64,...], mimes:[...]}
 let fileCounter = 0;   // stable IDs for uploadedFiles (separate from rowCounter)
 let rows = [];
 let processing = false;
@@ -546,34 +548,11 @@ function showGdriveClientIdField() {
 async function handleFiles(fileList) {
   const newFiles = [...fileList];
   for (const f of newFiles) {
-    if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
-      const entry = { id: fileCounter++, file: f, type: 'pdf', previewUrl: null, pages: [], pageCount: 0 };
-      uploadedFiles.push(entry);
-      // render PDF pages to images via canvas
-      try {
-        const ab = await f.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
-        entry.pageCount = pdf.numPages;
-        for (let p = 1; p <= pdf.numPages; p++) {
-          const page = await pdf.getPage(p);
-          const vp = page.getViewport({ scale: 1.0 });
-          const canvas = document.createElement('canvas');
-          // Resize to max 900px wide to keep base64 under 300KB
-          const maxW = 900;
-          const ratio = Math.min(1, maxW / vp.width);
-          canvas.width  = Math.round(vp.width  * ratio);
-          canvas.height = Math.round(vp.height * ratio);
-          const renderCtx = canvas.getContext('2d');
-          renderCtx.scale(ratio, ratio);
-          await page.render({ canvasContext: renderCtx, viewport: vp }).promise;
-          entry.pages.push(canvas.toDataURL('image/jpeg', 0.55).split(',')[1]);
-        }
-        entry.previewUrl = 'data:image/jpeg;base64,' + entry.pages[0];
-      } catch(e) { entry.pageCount = 0; }
-    } else if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
-      const previewUrl = URL.createObjectURL(f);  // original file — for human display
-      const b64 = await processImage(f);           // processed — for API
-      uploadedFiles.push({ id: fileCounter++, file: f, type: 'image', previewUrl, pages: [b64], pageCount: 1 });
+    if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
+      const previewUrl = URL.createObjectURL(f);
+      const b64  = await fileToBase64(f);
+      const mime = getMimeType(f);
+      uploadedFiles.push({ id: fileCounter++, file: f, type: 'image', previewUrl, pages: [b64], mimes: [mime], pageCount: 1 });
     }
   }
   renderFileList();
@@ -586,11 +565,8 @@ function renderFileList() {
   uploadedFiles.forEach((entry) => {
     const div = document.createElement('div');
     div.className = 'file-item';
-    const icon = entry.type === 'pdf' ? '📄' : '🖼️';
-    const extra = entry.type === 'pdf' ? `<span class="fi-pages">${entry.pageCount}p</span>` : '';
-    div.innerHTML = `<span class="fi-icon">${icon}</span>
+    div.innerHTML = `<span class="fi-icon">🖼️</span>
       <span class="fi-name">${entry.file.name}</span>
-      ${extra}
       <span class="fi-remove" data-fid="${entry.id}">✕</span>`;
     div.querySelector('.fi-remove').addEventListener('click', () => removeFile(entry.id));
     el.appendChild(div);
@@ -634,6 +610,8 @@ function checkReady() {
 }
 
 
+// Send file as-is to the API — no canvas, no recompression, maximum quality
+// Claude handles any orientation natively
 function fileToBase64(file) {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -643,35 +621,12 @@ function fileToBase64(file) {
   });
 }
 
-// Process image: send original bytes if already landscape, rotate only if portrait
-function processImage(file) {
-  return new Promise((res, rej) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      const srcW = img.naturalWidth;
-      const srcH = img.naturalHeight;
-      URL.revokeObjectURL(url); // revoke once, here
-
-      if (srcH <= srcW) {
-        // Already landscape — send original file untouched (best quality)
-        fileToBase64(file).then(res).catch(rej);
-        return;
-      }
-
-      // Portrait — rotate 90° clockwise to landscape
-      const canvas = document.createElement('canvas');
-      canvas.width  = srcH;
-      canvas.height = srcW;
-      const ctx = canvas.getContext('2d');
-      ctx.translate(canvas.width, 0);
-      ctx.rotate(Math.PI / 2);
-      ctx.drawImage(img, 0, 0, srcW, srcH);
-      res(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Image load failed')); };
-    img.src = url; // reuse same URL — no leak
-  });
+function getMimeType(file) {
+  if (file.type && file.type !== 'application/octet-stream') return file.type;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const map = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+                 gif: 'image/gif', webp: 'image/webp', heic: 'image/jpeg', heif: 'image/jpeg' };
+  return map[ext] || 'image/jpeg';
 }
 
 // ── GLOBAL CONFIG ──
@@ -750,7 +705,7 @@ async function startProcessing() {
   const units = [];
   for (const entry of uploadedFiles) {
     entry.pages.forEach((b64, pi) => {
-      units.push({ entry, b64, pageIndex: pi, sourceName: entry.file.name, isPdf: entry.type === 'pdf' });
+      units.push({ entry, b64, mime: entry.mimes[pi] || 'image/jpeg', sourceName: entry.file.name });
     });
   }
 
@@ -765,7 +720,6 @@ async function startProcessing() {
   finalize();
 }
 
-// ── TWO-STEP API CALL ──
 function getAppToken() {
   return localStorage.getItem('g3_app_token') || '';
 }
@@ -802,133 +756,103 @@ async function callWorker(messages, maxTokens = 800) {
 
 async function processUnit(unit) {
   const log = document.getElementById('plog');
-  const label = unit.isPdf
-    ? `${unit.sourceName} p.${unit.pageIndex+1}`
-    : unit.sourceName;
+  const label = unit.sourceName;
 
   addLog(log, `🔍 Analizando ${label}...`, 'info');
 
   const fechaInicio = document.getElementById('cfgFechaInicio').value;
   const fechaFin    = document.getElementById('cfgFechaFin').value;
   const fechasValidas = (fechaInicio && fechaFin) ? buildFechasList(fechaInicio, fechaFin) : [];
-  const rangoStr = fechasValidas.length
-    ? `\nFECHAS VÁLIDAS — LA ÚNICA LISTA POSIBLE PARA ESTA SEMANA:\n${fechasValidas.join(', ')}\nLa fecha del ticket DEBE ser una de estas. No existe otra posibilidad.\nSi lo que lees no coincide exactamente, elige la más cercana de la lista y pon confident=false.`
-    : '\nNo se configuró rango de fechas. Usa el año 2026 siempre.';
 
-  const prompt = `Eres un extractor de datos de tickets de volteo de arena (empresa G3 Volteos, México).
-Analiza la imagen. Puede haber UNO o VARIOS tickets visibles.
+  const rangoFechas = fechasValidas.length
+    ? `La fecha DEBE ser una de estas (DD/MM/YYYY): ${fechasValidas.join(', ')}.`
+    : 'El año siempre es 2026.';
 
-━━━ PASO 1 — PLACAS (empieza siempre por aquí, es el campo más legible) ━━━
-Busca el campo "PLACAS:" en el ticket. Solo existen DOS camiones posibles:
-  • Si lees algo con "VR" o "7129"  →  placas="VR-7129-C"  numero_economico="G-01"
-  • Si lees algo con "VS" o "4578"  →  placas="VS-4578-C"  numero_economico="G-02"
-El campo "CAMIÓN No. ECO:" solo úsalo si PLACAS es completamente ilegible.
-Si ni placas ni eco son legibles → deja placas="" y numero_economico="" y pon confident=false.
+  const prompt = `Extrae los datos de cada ticket de volteo visible en la imagen. Puede haber más de uno.
 
-━━━ PASO 2 — FOLIO ━━━
-Es un número PRE-IMPRESO en tinta roja o naranja dentro de un recuadro (normalmente 4 dígitos).
-NO es el número escrito a mano. Si no lo puedes leer con certeza → folio="" y confident=false.
-Escríbelo con ceros a la izquierda: "0984", "1203".
+PLACAS (lee este campo primero, es el más confiable):
+- Solo existen dos camiones: VR-7129-C (= G-01) y VS-4578-C (= G-02)
+- Si ves "VR" o "7129" → VR-7129-C / G-01
+- Si ves "VS" o "4578" → VS-4578-C / G-02
+- Si no puedes leer las placas, intenta con el campo "CAMIÓN No. ECO:"
 
-━━━ PASO 3 — FECHA ━━━
-Está escrita a mano. El formato es D-M-26 (día-mes-año, sin ceros adelante).
-El año SIEMPRE es 2026, aunque veas un solo dígito al final (el "26" se refiere a 2026).
-Ejemplos de lectura: "1-4-26"→"01/04/2026"  "5-1-26"→"05/01/2026"  "3/4/26"→"03/04/2026"${rangoStr}
-Salida siempre en formato DD/MM/YYYY.
-Si la fecha es completamente ilegible → fecha="" y confident=false.
+FOLIO: número impreso en rojo/naranja en un recuadro. Es pre-impreso, no manuscrito. 4 dígitos con ceros: "0984".
 
-━━━ CAMPOS ILEGIBLES ━━━
-Si un campo no se puede leer con certeza → déjalo en "" (cadena vacía). No inventes valores.
+FECHA: escrita a mano, formato D-M-26 sin ceros (ej: 5-1-26 = 05/01/2026, 3-4-26 = 03/04/2026).
+${rangoFechas}
+Convierte siempre a DD/MM/YYYY.
 
-Responde SOLO con JSON, sin texto antes ni después:
-{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-01","placas":"VR-7129-C","confident":true}]}
-Sin tickets visibles: {"tickets":[]}`;
+Si un campo es ilegible → ponlo como "" y confident=false.
+
+Responde solo JSON:
+{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-01","placas":"VR-7129-C","confident":true}]}`;
 
   let raw = '';
   try {
     raw = await callWorker([{
       role: 'user',
       content: [
-        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: unit.b64 } },
+        { type: 'image', source: { type: 'base64', media_type: unit.mime, data: unit.b64 } },
         { type: 'text', text: prompt }
       ]
-    }], 800);
+    }], 600);
   } catch(e) {
     addLog(log, `✗ ${label}: ${e.message}`, 'err');
     return;
   }
 
-  // Robust JSON extraction — handles markdown fences and leading text
   const jsonMatch = raw.replace(/```json|```/g, '').match(/\{[\s\S]*\}/);
   let parsed;
   try { parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { tickets: [] }; }
   catch { parsed = { tickets: [] }; }
 
   const tickets = Array.isArray(parsed.tickets) ? parsed.tickets : [];
-
-  if (tickets.length === 0) {
-    addLog(log, `⚠ ${label}: sin tickets detectados`, 'warn');
-    return;
-  }
+  if (tickets.length === 0) { addLog(log, `⚠ ${label}: sin tickets`, 'warn'); return; }
 
   const multi = tickets.length > 1;
-  if (multi) addLog(log, `📦 ${label}: ${tickets.length} tickets en una imagen`, 'info');
+  if (multi) addLog(log, `📦 ${label}: ${tickets.length} tickets`, 'info');
 
   const tiro     = document.getElementById('cfgTiro').value;
   const servicio = document.getElementById('cfgServicio').value;
   const capacidad= document.getElementById('cfgCapacidad').value;
 
   tickets.forEach(t => {
-    // JS safety net: normalize plates and enforce TRUCKS mapping
     const norm = normalizePlacas(t.placas);
     let eco, placas, confident = t.confident !== false;
 
     if (norm) {
-      eco    = norm.eco;
-      placas = norm.placas;
-    } else if (t.placas === '' || t.placas == null) {
-      // Model left it blank intentionally — keep blank for manual fill
-      eco    = (t.numero_economico || '');
-      placas = '';
-      if (!eco) confident = false;
+      eco = norm.eco; placas = norm.placas;
     } else {
-      // Unrecognized plate string — try ECO fallback
       eco    = (t.numero_economico || '').trim();
       placas = TRUCKS[eco]?.placas || '';
-      confident = false; // neither was clean
+      if (!placas) confident = false;
     }
 
-    // Date: enforce it's within valid range if configured
+    // Enforce fecha within valid range
     let fecha = t.fecha || '';
     if (fecha && fechasValidas.length && !fechasValidas.includes(fecha)) {
-      // Find nearest valid date
-      const parsed = parseDate(fecha);
-      if (parsed) {
+      const pd = parseDate(fecha);
+      if (pd) {
         const nearest = fechasValidas
-          .map(f => ({ f, d: Math.abs(parseDate(f) - parsed) }))
-          .sort((a, b) => a.d - b.d)[0];
-        fecha = nearest ? nearest.f : fecha;
+          .map(f => ({ f, diff: Math.abs(parseDate(f) - pd) }))
+          .sort((a, b) => a.diff - b.diff)[0];
+        if (nearest) { fecha = nearest.f; confident = false; }
       }
-      confident = false;
     }
 
     const row = {
       id: rowCounter++,
-      previewUrl: unit.entry.type === 'pdf' ? null : unit.entry.previewUrl,
-      isPdf: unit.isPdf,
+      previewUrl: unit.entry.previewUrl,
       sourceName: label,
       multiTicket: multi,
-      fecha,
-      folio: t.folio || '',
-      numero_economico: eco,
-      placas, tiro, servicio, capacidad,
-      confident,
+      fecha, folio: t.folio || '',
+      numero_economico: eco, placas,
+      tiro, servicio, capacidad, confident,
     };
     rows.push(row);
     renderRow(row);
-    addLog(log,
-      `${row.confident ? '✓' : '⚠'} Folio ${row.folio||'—'} | ${eco||'—'} | ${fecha||'—'}`,
-      row.confident ? 'ok' : 'warn');
+    addLog(log, `${confident ? '✓' : '⚠'} Folio ${row.folio||'—'} | ${eco||'—'} | ${fecha||'—'}`,
+      confident ? 'ok' : 'warn');
   });
 }
 
@@ -942,54 +866,36 @@ function renderRow(row) {
   tr.id = `row-${row.id}`;
   if (!row.confident) tr.classList.add('low-conf');
 
-  // ── Source cell with thumb + rotate buttons ──
+  // ── Source cell: clickable thumb + rotate buttons ──
   const srcTd = document.createElement('td');
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px';
 
-  if (row.isPdf) {
-    // PDF: icon + rotate buttons (rotates the lightbox view)
-    srcTd.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
-        <div class="pdf-thumb" style="cursor:default">📄</div>
-        <div style="display:flex;gap:0">
-          <button class="rotate-btn" title="Rotar izq">↺</button>
-          <button class="rotate-btn" title="Rotar der">↻</button>
-        </div>
-      </div>`;
-    // PDF rotate buttons adjust thumbRotation for lightbox only
-    const [btnL, btnR] = srcTd.querySelectorAll('.rotate-btn');
-    btnL.addEventListener('click', () => rotateThumb(row.id, -90));
-    btnR.addEventListener('click', () => rotateThumb(row.id,  90));
-  } else {
-    // Image: clickable thumb + rotate buttons
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px';
+  const thumbWrap = document.createElement('div');
+  thumbWrap.className = 'thumb-wrap';
+  thumbWrap.id = `twrap-${row.id}`;
+  thumbWrap.style.cursor = 'zoom-in';
 
-    const thumbWrap = document.createElement('div');
-    thumbWrap.className = 'thumb-wrap';
-    thumbWrap.id = `twrap-${row.id}`;
-    thumbWrap.style.cursor = 'zoom-in';
+  const img = document.createElement('img');
+  img.className = 'thumb';
+  img.id = `thumb-${row.id}`;
+  img.src = row.previewUrl;
+  img.addEventListener('load', () => fixThumbOrientation(img, row.id));
+  thumbWrap.addEventListener('click', () => openLightbox(row.previewUrl, row.id));
+  thumbWrap.appendChild(img);
 
-    const img = document.createElement('img');
-    img.className = 'thumb';
-    img.id = `thumb-${row.id}`;
-    img.src = row.previewUrl;
-    img.addEventListener('load', () => fixThumbOrientation(img, row.id));
-    thumbWrap.addEventListener('click', () => openLightbox(row.previewUrl, row.id));
-    thumbWrap.appendChild(img);
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:0';
+  const btnL = document.createElement('button');
+  btnL.className = 'rotate-btn'; btnL.title = 'Rotar izq'; btnL.textContent = '↺';
+  const btnR = document.createElement('button');
+  btnR.className = 'rotate-btn'; btnR.title = 'Rotar der'; btnR.textContent = '↻';
+  btnL.addEventListener('click', () => rotateThumb(row.id, -90));
+  btnR.addEventListener('click', () => rotateThumb(row.id,  90));
+  btnRow.append(btnL, btnR);
 
-    const btnRow = document.createElement('div');
-    btnRow.style.cssText = 'display:flex;gap:0';
-    const btnL = document.createElement('button');
-    btnL.className = 'rotate-btn'; btnL.title = 'Rotar izq'; btnL.textContent = '↺';
-    const btnR = document.createElement('button');
-    btnR.className = 'rotate-btn'; btnR.title = 'Rotar der'; btnR.textContent = '↻';
-    btnL.addEventListener('click', () => rotateThumb(row.id, -90));
-    btnR.addEventListener('click', () => rotateThumb(row.id,  90));
-    btnRow.append(btnL, btnR);
-
-    wrap.append(thumbWrap, btnRow);
-    srcTd.appendChild(wrap);
-  }
+  wrap.append(thumbWrap, btnRow);
+  srcTd.appendChild(wrap);
 
   if (row.multiTicket) {
     const badge = document.createElement('span');
