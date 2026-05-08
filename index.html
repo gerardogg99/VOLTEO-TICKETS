@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
 <style>
   :root {
@@ -411,7 +413,8 @@
     </div>
     <div class="bottom-bar" id="bottomBar" style="display:none;">
       <div class="week-label">Semana: <strong id="weekLabel">—</strong></div>
-      <button class="btn btn-export" id="btnExport" onclick="exportExcel()" disabled>⬇ Descargar Excel</button>
+      <button class="btn btn-export" id="btnExport" onclick="exportExcel()" disabled>⬇ Excel</button>
+      <button class="btn btn-export" id="btnPdf" onclick="exportPDF()" disabled style="background:#3b82f6;border-color:#3b82f6;">⬇ PDF</button>
       <button class="btn btn-clear" onclick="clearAll()">✕ Limpiar</button>
       <div class="warn-note" id="warnNote" style="display:none;">⚠ Filas amarillas requieren revisión</div>
     </div>
@@ -478,7 +481,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v08';
+const APP_VERSION = 'v3';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
@@ -1203,6 +1206,7 @@ function finalize() {
   btn.innerHTML = '<span>✓</span> LISTO — procesar de nuevo';
   btn.disabled = false;
   document.getElementById('btnExport').disabled = rows.length === 0;
+  document.getElementById('btnPdf').disabled = rows.length === 0;
   updateStats();
 
   // Sort table: ECO (G-01 first) then date ascending
@@ -1236,10 +1240,9 @@ let reviewQueue = [];
 let reviewIdx = 0;
 let reviewRotDeg = 0;
 
-function startReview(queue, manual = false) {
+function startReview(queue, manual = false, startIdx = 0) {
   reviewQueue = queue;
-  reviewIdx = 0;
-  document.getElementById('reviewTitle').textContent = manual ? '✎ REVISAR TICKET' : '⚠ REVISAR TICKET';
+  reviewIdx = startIdx;
   showReviewItem();
 }
 
@@ -1456,6 +1459,133 @@ async function exportExcel() {
   XLSX.writeFile(wb, fileName, { cellStyles: true, bookType: 'xlsx' });
 }
 
+// ── PDF EXPORT — matches the Word template format ──
+function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+
+  const tiro      = document.getElementById('cfgTiro').value;
+  const precio    = parseFloat(document.getElementById('cfgPrecio').value) || 900;
+  const weekLabel = detectWeekLabel();
+  const year      = new Date().getFullYear();
+
+  // Sort same as Excel: ECO then date
+  const sorted = [...rows].sort((a, b) => {
+    const ecoA = a.numero_economico || 'ZZ', ecoB = b.numero_economico || 'ZZ';
+    if (ecoA !== ecoB) return ecoA.localeCompare(ecoB);
+    const da = parseDate(a.fecha), db = parseDate(b.fecha);
+    if (da && db) return da - db;
+    return (a.folio || '').localeCompare(b.folio || '');
+  });
+
+  const pageW = 279.4; // letter landscape width mm
+  const margin = 15;
+  let y = margin;
+
+  // ── Header ──
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('Persona Física: Gerardo García Gutiérrez', pageW / 2, y, { align: 'center' });
+  y += 5;
+  doc.text('Régimen Simplificado de Confianza (RESICO)', pageW / 2, y, { align: 'center' });
+  y += 6;
+
+  doc.setFontSize(10);
+  const title = `CONCILIACIÓN DE VIAJES ${tiro.toUpperCase()} SEMANA DEL ${weekLabel.toUpperCase()} DEL ${year}`;
+  doc.text(title, pageW / 2, y, { align: 'center' });
+  y += 8;
+
+  // ── Main data table ──
+  const tableBody = sorted.map((row, i) => [
+    i + 1,
+    row.fecha,
+    row.folio,
+    row.numero_economico,
+    row.placas,
+    row.capacidad,
+    row.servicio,
+    row.tiro
+  ]);
+
+  doc.autoTable({
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [['No.', 'Fecha', 'Folio', 'Número Económico', 'Placas', 'Capacidad M3', 'Servicio', 'Tiro']],
+    body: tableBody,
+    styles: {
+      font: 'helvetica', fontSize: 8, cellPadding: 1.5,
+      lineColor: [180, 180, 180], lineWidth: 0.2,
+    },
+    headStyles: {
+      fillColor: [46, 117, 182], textColor: 255,
+      fontStyle: 'bold', fontSize: 8, halign: 'center',
+    },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 10 },
+      1: { halign: 'center', cellWidth: 22 },
+      2: { halign: 'center', cellWidth: 18 },
+      3: { halign: 'center', cellWidth: 30 },
+      4: { halign: 'center', cellWidth: 26 },
+      5: { halign: 'center', cellWidth: 24 },
+      6: { halign: 'center', cellWidth: 22 },
+      7: { halign: 'left',   cellWidth: 'auto' },
+    },
+    alternateRowStyles: { fillColor: [245, 249, 255] },
+    didParseCell: (data) => {
+      // Yellow for low-confidence rows
+      if (data.section === 'body' && sorted[data.row.index] && !sorted[data.row.index].confident) {
+        data.cell.styles.fillColor = [255, 255, 180];
+      }
+    },
+    didDrawPage: (data) => {
+      // Page number footer
+      const pageNum = doc.internal.getCurrentPageInfo().pageNumber;
+      const total   = doc.internal.getNumberOfPages();
+      doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+      doc.setTextColor(150);
+      doc.text(`Página ${pageNum} / ${total}`, pageW - margin, 205, { align: 'right' });
+      doc.setTextColor(0);
+    }
+  });
+
+  // ── Totals table ──
+  const subtotal = sorted.length * precio;
+  const iva      = subtotal * 0.16;
+  const ivaRet   = iva * 0.25;           // IVA retenido 2/3
+  const isrRet   = subtotal * 0.0125;    // ISR retenido 1.25%
+  const total    = subtotal + iva - ivaRet - isrRet;
+
+  const fmt = n => `$ ${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const summaryY = doc.lastAutoTable.finalY + 6;
+
+  doc.autoTable({
+    startY: summaryY,
+    margin: { left: margin, right: margin },
+    tableWidth: 120,
+    body: [
+      [{ content: `TOTAL DE VIAJES DEL ${tiro.toUpperCase()}`, styles: { fontStyle: 'bold' } }, sorted.length],
+      [{ content: 'PRECIO POR VIAJE', styles: { fontStyle: 'bold' } }, fmt(precio)],
+      ['', ''],
+      [{ content: '', styles: {} }, { content: 'SUBTOTAL',      styles: { halign: 'right' } }, fmt(subtotal)],
+      ['', { content: 'IVA',             styles: { halign: 'right' } }, fmt(iva)],
+      ['', { content: 'IVA RETENIDO',    styles: { halign: 'right' } }, `(${fmt(ivaRet)})`],
+      ['', { content: 'ISR RETENIDO',    styles: { halign: 'right' } }, `(${fmt(isrRet)})`],
+      ['', { content: 'TOTAL', styles: { halign: 'right', fontStyle: 'bold' } }, { content: fmt(total), styles: { fontStyle: 'bold' } }],
+    ],
+    styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.5, lineColor: [180, 180, 180], lineWidth: 0.2 },
+    columnStyles: {
+      0: { cellWidth: 60 },
+      1: { cellWidth: 35, halign: 'right' },
+      2: { cellWidth: 35, halign: 'right' },
+    },
+    theme: 'plain',
+  });
+
+  const pdfName = `Conciliacion_${weekLabel.replace(/\s/g, '_').replace(/–/g, '-')}_${year}.pdf`;
+  doc.save(pdfName);
+}
+
 
 
 
@@ -1482,11 +1612,9 @@ function closeLightbox() {
 
 // ── MANUAL SINGLE-ROW REVIEW ──
 function openRowReview(rowId) {
-  const row = rows.find(r => r.id === rowId);
-  if (!row) return;
-  // Wrap in a single-item queue
-  document.getElementById('reviewTitle').textContent = '✎ REVISAR TICKET';
-  startReview([row], true);
+  const idx = rows.findIndex(r => r.id === rowId);
+  if (idx === -1) return;
+  startReview([...rows], true, idx);
 }
 
 function clearAll() {
@@ -1506,6 +1634,7 @@ function clearAll() {
   document.getElementById('btnProcess').innerHTML = '<span>⚡</span> PROCESAR TICKETS';
   document.getElementById('btnProcess').classList.remove('running');
   document.getElementById('btnProcess').disabled = true;
+  document.getElementById('btnPdf') && (document.getElementById('btnPdf').disabled = true);
   document.getElementById('headerMeta').textContent = 'Listo para procesar';
 }
 </script>
