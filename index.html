@@ -481,7 +481,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v99';
+const APP_VERSION = 'v100';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
@@ -1551,11 +1551,6 @@ function exportPDF() {
   });
 
   // ── Totals — correct formulas ──
-  // SUBTOTAL = viajes × precio
-  // IVA = SUBTOTAL × 0.16  (NOT ×1.16 — IVA is on top of subtotal)
-  // IVA RETENIDO = SUBTOTAL × -0.04
-  // ISR RETENIDO = SUBTOTAL × -0.0125
-  // TOTAL = SUBTOTAL + IVA + IVA_RET + ISR_RET
   const subtotal = sorted.length * precio;
   const iva      =  subtotal *  0.16;
   const ivaRet   =  subtotal * -0.04;
@@ -1567,7 +1562,12 @@ function exportPDF() {
     return n < 0 ? `($  ${abs})` : `$  ${abs}`;
   };
 
-  const summaryY = doc.lastAutoTable.finalY + 7;
+  // 8 rows × ~6.5mm each + 7mm gap ≈ 59mm needed
+  const TOTALS_HEIGHT = 59;
+  const spaceLeft = pageH - margin - doc.lastAutoTable.finalY;
+  const summaryY = spaceLeft < TOTALS_HEIGHT
+    ? (doc.addPage(), margin)                    // not enough room — new page
+    : doc.lastAutoTable.finalY + 7;              // fits — stay on same page
 
   doc.autoTable({
     startY: summaryY,
