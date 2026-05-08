@@ -454,8 +454,9 @@
       </div>
     </div>
     <div class="review-actions">
-      <button class="btn-approve" id="btnApprove">✓ Aprobar y continuar</button>
-      <button class="btn-skip" id="btnSkip">Saltar</button>
+      <button class="btn-skip" id="btnPrev" style="display:none">← Ant.</button>
+      <button class="btn-approve" id="btnApprove">✓ Aprobar</button>
+      <button class="btn-skip" id="btnSkip">Omitir →</button>
     </div>
   </div>
 </div>
@@ -477,7 +478,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v3';
+const APP_VERSION = 'v08';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
@@ -1226,9 +1227,8 @@ function finalize() {
 
   document.getElementById('headerMeta').textContent = `${rows.length} tickets listos — revisa y descarga`;
 
-  // Auto-launch review for low-confidence rows
-  const toReview = rows.filter(r => !r.confident);
-  if (toReview.length > 0) startReview(toReview);
+  // Launch review for ALL tickets so user can verify each one
+  if (rows.length > 0) startReview([...rows]);
 }
 
 // ── REVIEW MODAL ──
@@ -1254,11 +1254,23 @@ function showReviewItem() {
 
   document.getElementById('reviewModal').classList.remove('hidden');
   document.getElementById('reviewCounter').textContent =
-    `${reviewIdx + 1} de ${reviewQueue.length}`;
+    `${reviewIdx + 1} / ${reviewQueue.length}`;
   document.getElementById('rvSource').textContent = row.sourceName;
   document.getElementById('rvFecha').value = row.fecha;
   document.getElementById('rvFolio').value = row.folio;
   document.getElementById('rvEco').value = row.numero_economico || '';
+
+  // Show confidence state in title
+  const title = document.getElementById('reviewTitle');
+  title.textContent = row.confident ? '✓ TICKET APROBADO' : '⚠ REVISAR TICKET';
+  title.style.color = row.confident ? 'var(--success)' : 'var(--accent)';
+
+  // Show/hide prev button
+  document.getElementById('btnPrev').style.display = reviewIdx > 0 ? '' : 'none';
+
+  // Last ticket: change approve text
+  document.getElementById('btnApprove').textContent =
+    reviewIdx === reviewQueue.length - 1 ? '✓ Aprobar y cerrar' : '✓ Aprobar';
 
   const img = document.getElementById('reviewImg');
   img.src = row.previewUrl || '';
@@ -1304,6 +1316,13 @@ function skipReview() {
   showReviewItem();
 }
 
+function prevReview() {
+  if (reviewIdx > 0) {
+    reviewIdx--;
+    showReviewItem();
+  }
+}
+
 // Rotation state used by review modal
 const thumbRotation = {};
 
@@ -1336,6 +1355,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Review modal controls ──
   document.getElementById('btnApprove').addEventListener('click', applyReview);
   document.getElementById('btnSkip').addEventListener('click', skipReview);
+  document.getElementById('btnPrev').addEventListener('click', prevReview);
   document.getElementById('rvRotL').addEventListener('click', () => {
     reviewRotDeg = (reviewRotDeg - 90 + 360) % 360;
     const img = document.getElementById('reviewImg');
