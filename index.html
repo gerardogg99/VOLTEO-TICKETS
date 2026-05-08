@@ -592,7 +592,7 @@ async function handleFiles(fileList) {
       } catch(e) { entry.pageCount = 0; }
     } else if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
       const url = URL.createObjectURL(f);
-      const b64 = await compressImage(f, 900, 0.55);
+      const b64 = await processImage(f);
       uploadedFiles.push({ file: f, type: 'image', previewUrl: url, pages: [b64], pageCount: 1 });
     }
   }
@@ -656,71 +656,34 @@ function fileToBase64(file) {
   });
 }
 
-// Read EXIF orientation tag from JPEG
-function getExifOrientation(file) {
-  return new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const view = new DataView(e.target.result);
-      if (view.getUint16(0, false) !== 0xFFD8) return resolve(1);
-      let offset = 2;
-      while (offset < view.byteLength) {
-        const marker = view.getUint16(offset, false);
-        offset += 2;
-        if (marker === 0xFFE1) {
-          if (view.getUint32(offset += 2, false) !== 0x45786966) return resolve(1);
-          const little = view.getUint16(offset += 6, false) === 0x4949;
-          offset += view.getUint32(offset + 4, little);
-          const tags = view.getUint16(offset, little);
-          offset += 2;
-          for (let i = 0; i < tags; i++) {
-            if (view.getUint16(offset + (i * 12), little) === 0x0112)
-              return resolve(view.getUint16(offset + (i * 12) + 8, little));
-          }
-        } else if ((marker & 0xFF00) !== 0xFF00) break;
-        else offset += view.getUint16(offset, false);
-      }
-      resolve(1);
-    };
-    reader.readAsArrayBuffer(file.slice(0, 64 * 1024));
-  });
-}
-
-// Compress + rotate to landscape for best readability
-// Browsers auto-apply EXIF rotation when drawing to canvas via img element,
-// so we only need to handle portrait→landscape rotation, not EXIF correction.
-function compressImage(file, maxW=900, quality=0.55) {
-  return new Promise(async (res, rej) => {
+// Process image: send original bytes if already landscape, rotate only if portrait
+function processImage(file) {
+  return new Promise((res, rej) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       const srcW = img.naturalWidth;
       const srcH = img.naturalHeight;
+      URL.revokeObjectURL(url);
 
-      // If portrait (taller than wide), rotate 90° clockwise to make landscape
-      const needsRotate = srcH > srcW;
-      const outW = needsRotate ? srcH : srcW;
-      const outH = needsRotate ? srcW : srcH;
-
-      const ratio = Math.min(1, maxW / outW);
-      const canvas = document.createElement('canvas');
-      canvas.width  = Math.round(outW * ratio);
-      canvas.height = Math.round(outH * ratio);
-
-      const ctx = canvas.getContext('2d');
-      if (needsRotate) {
-        ctx.translate(canvas.width, 0);
-        ctx.rotate(Math.PI / 2);
-        ctx.drawImage(img, 0, 0, srcW * ratio, srcH * ratio);
-      } else {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      if (srcH <= srcW) {
+        // Already landscape — send original file untouched (best quality)
+        fileToBase64(file).then(res).catch(rej);
+        return;
       }
 
-      URL.revokeObjectURL(url);
-      res(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
+      // Portrait — rotate 90° clockwise to landscape
+      const canvas = document.createElement('canvas');
+      canvas.width  = srcH;
+      canvas.height = srcW;
+      const ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width, 0);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(img, 0, 0, srcW, srcH);
+      res(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
     };
     img.onerror = rej;
-    img.src = url;
+    img.src = URL.createObjectURL(file);
   });
 }
 
@@ -796,12 +759,29 @@ async function processUnit(unit) {
 
   addLog(log, `🔍 Analizando ${label}...`, 'info');
 
-  // Build date range context for prompt
+  // Build date range context — generate explicit list of valid dates
   const fechaInicio = document.getElementById('cfgFechaInicio').value;
   const fechaFin    = document.getElementById('cfgFechaFin').value;
-  const rangoStr = (fechaInicio && fechaFin)
-    ? `\nPERÍODO: Todos los tickets son de este rango exacto: ${fechaInicio} al ${fechaFin}. REGLA ESTRICTA: si la fecha que lees NO está dentro de este rango, es un error de lectura — usa la fecha más cercana dentro del rango y pon confident=false. No pongas fechas fuera de este rango bajo ninguna circunstancia.`
-    : '';
+
+  function buildFechasList(inicio, fin) {
+    const dias = [];
+    const d = new Date(inicio + 'T00:00:00');
+    const end = new Date(fin + 'T00:00:00');
+    const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    while (d <= end) {
+      const dd = String(d.getDate()).padStart(2,'0');
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const yyyy = d.getFullYear();
+      dias.push(`${dd}/${mm}/${yyyy}`);
+      d.setDate(d.getDate()+1);
+    }
+    return dias;
+  }
+
+  const rangoStr = (fechaInicio && fechaFin) ? (() => {
+    const lista = buildFechasList(fechaInicio, fechaFin);
+    return `\nFECHAS VÁLIDAS — esta semana SOLO puede contener estas fechas exactas:\n${lista.join(', ')}\nLa fecha del ticket DEBE ser una de estas. Si lo que lees no coincide exactamente con alguna de ellas, elige la más cercana y pon confident=false. NUNCA escribas una fecha que no esté en esta lista.`;
+  })() : '';
 
   const prompt = `Eres un extractor de datos de tickets de volteo de arena en México (empresa G3 Volteos).
 
@@ -1016,9 +996,7 @@ async function exportExcel() {
     return parseInt(a.folio||0)-parseInt(b.folio||0);
   });
 
-  const precio = parseFloat(document.getElementById('cfgPrecio').value) || 900;
   const tiro   = document.getElementById('cfgTiro').value;
-  const total  = sorted.length;
   const weekLabel = detectWeekLabel();
   const year = new Date().getFullYear();
 
@@ -1046,19 +1024,6 @@ async function exportExcel() {
 
   const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
-  // Summary block on right side (columns K-M, starting row 5)
-  const sumR = 4; // 0-indexed = Excel row 5
-  XLSX.utils.sheet_add_aoa(ws, [
-    ['','','TOTAL DE VIAJES DEL BANCO EL MARINO','',total],
-    ['','','PRECIO POR VIAJE','',precio],
-    [],
-    ['','','','SUBTOTAL',   {f:`M${sumR+1}*M${sumR+2}`}],
-    ['','','','IVA',         {f:`M${sumR+4}*0.16`}],
-    ['','','','IVA RETENIDO',{f:`M${sumR+4}*-0.04`}],
-    ['','','','ISR RETENIDO',{f:`M${sumR+4}*-0.0125`}],
-    ['','','','TOTAL',       {f:`M${sumR+4}+M${sumR+5}+M${sumR+6}+M${sumR+7}`}],
-  ], { origin: { r: sumR, c: 10 } });
-
   // Yellow fill for low-confidence rows
   const yellowFill = { patternType:'solid', fgColor:{ rgb:'FFFF00' } };
   sorted.forEach((row,i)=>{
@@ -1071,11 +1036,10 @@ async function exportExcel() {
     }
   });
 
-  // Column widths matching original template
+  // Column widths
   ws['!cols'] = [
     {wch:2},{wch:5},{wch:12},{wch:8},{wch:16},
-    {wch:12},{wch:12},{wch:10},{wch:25},
-    {wch:2},{wch:2},{wch:25},{wch:15}
+    {wch:12},{wch:12},{wch:10},{wch:25}
   ];
 
   // Date format for Fecha column
@@ -1085,7 +1049,7 @@ async function exportExcel() {
     if (ws[ref]&&d) { ws[ref].t='d'; ws[ref].v=d; ws[ref].z='DD/MM/YYYY'; }
   });
 
-  ws['!ref'] = `A1:M${sorted.length+12}`;
+  ws['!ref'] = `A1:I${sorted.length+4}`;
 
   const sheetName = weekLabel.replace(/[\\/*?:[\]]/g,'-').substring(0,31) || 'Semana';
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
