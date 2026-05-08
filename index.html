@@ -481,7 +481,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v3';
+const APP_VERSION = 'v99';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
@@ -875,6 +875,7 @@ async function startProcessing() {
       <div class="stat"><div class="stat-val" id="sTotal">0</div><div class="stat-lbl">VIAJES</div></div>
       <div class="stat"><div class="stat-val" id="sG01" style="color:#a78bfa">0</div><div class="stat-lbl">G-01</div></div>
       <div class="stat"><div class="stat-val" id="sG02" style="color:#34d399">0</div><div class="stat-lbl">G-02</div></div>
+      <div class="stat"><div class="stat-val" id="sSubtotal" style="color:var(--accent);font-size:13px">$0</div><div class="stat-lbl">SUBTOTAL</div></div>
     </div>
     <div class="table-wrap" id="tableWrap" style="display:none">
       <table id="dataTable">
@@ -1190,11 +1191,15 @@ function updateStats() {
   const warn = rows.filter(r=>!r.confident).length;
   const g01  = rows.filter(r=>r.numero_economico.includes('G-01')).length;
   const g02  = rows.filter(r=>r.numero_economico.includes('G-02')).length;
+  const precio = parseFloat(document.getElementById('cfgPrecio')?.value) || 900;
+  const subtotal = rows.length * precio;
   document.getElementById('sOk').textContent = ok;
   document.getElementById('sWarn').textContent = warn;
   document.getElementById('sTotal').textContent = rows.length;
   document.getElementById('sG01').textContent = g01;
   document.getElementById('sG02').textContent = g02;
+  const sSub = document.getElementById('sSubtotal');
+  if (sSub) sSub.textContent = '$' + subtotal.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   if (warn > 0) document.getElementById('warnNote').style.display = 'flex';
   document.getElementById('weekLabel').textContent = detectWeekLabel();
 }
@@ -1462,7 +1467,7 @@ async function exportExcel() {
 // ── PDF EXPORT — matches the Word template format ──
 function exportPDF() {
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
 
   const tiro      = document.getElementById('cfgTiro').value;
   const precio    = parseFloat(document.getElementById('cfgPrecio').value) || 900;
@@ -1478,8 +1483,9 @@ function exportPDF() {
     return (a.folio || '').localeCompare(b.folio || '');
   });
 
-  const pageW = 279.4; // letter landscape width mm
-  const margin = 15;
+  const pageW  = 215.9; // letter portrait width mm
+  const pageH  = 279.4;
+  const margin = 14;
   let y = margin;
 
   // ── Header ──
@@ -1489,11 +1495,10 @@ function exportPDF() {
   y += 5;
   doc.text('Régimen Simplificado de Confianza (RESICO)', pageW / 2, y, { align: 'center' });
   y += 6;
-
-  doc.setFontSize(10);
-  const title = `CONCILIACIÓN DE VIAJES ${tiro.toUpperCase()} SEMANA DEL ${weekLabel.toUpperCase()} DEL ${year}`;
+  doc.setFontSize(9.5);
+  const title = `CONCILIACIÓN DE VIAJES ${tiro.toUpperCase()}\nSEMANA DEL ${weekLabel.toUpperCase()} DEL ${year}`;
   doc.text(title, pageW / 2, y, { align: 'center' });
-  y += 8;
+  y += 12;
 
   // ── Main data table ──
   const tableBody = sorted.map((row, i) => [
@@ -1510,74 +1515,81 @@ function exportPDF() {
   doc.autoTable({
     startY: y,
     margin: { left: margin, right: margin },
-    head: [['No.', 'Fecha', 'Folio', 'Número Económico', 'Placas', 'Capacidad M3', 'Servicio', 'Tiro']],
+    head: [['No.', 'Fecha', 'Folio', 'Núm. Eco.', 'Placas', 'Cap. M3', 'Servicio', 'Tiro']],
     body: tableBody,
     styles: {
-      font: 'helvetica', fontSize: 8, cellPadding: 1.5,
-      lineColor: [180, 180, 180], lineWidth: 0.2,
+      font: 'helvetica', fontSize: 7, cellPadding: 1.2,
+      lineColor: [180, 180, 180], lineWidth: 0.2, overflow: 'linebreak',
     },
     headStyles: {
       fillColor: [46, 117, 182], textColor: 255,
-      fontStyle: 'bold', fontSize: 8, halign: 'center',
+      fontStyle: 'bold', fontSize: 7, halign: 'center',
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 10 },
-      1: { halign: 'center', cellWidth: 22 },
-      2: { halign: 'center', cellWidth: 18 },
-      3: { halign: 'center', cellWidth: 30 },
-      4: { halign: 'center', cellWidth: 26 },
-      5: { halign: 'center', cellWidth: 24 },
-      6: { halign: 'center', cellWidth: 22 },
+      0: { halign: 'center', cellWidth: 9  },
+      1: { halign: 'center', cellWidth: 20 },
+      2: { halign: 'center', cellWidth: 16 },
+      3: { halign: 'center', cellWidth: 20 },
+      4: { halign: 'center', cellWidth: 22 },
+      5: { halign: 'center', cellWidth: 16 },
+      6: { halign: 'center', cellWidth: 18 },
       7: { halign: 'left',   cellWidth: 'auto' },
     },
     alternateRowStyles: { fillColor: [245, 249, 255] },
     didParseCell: (data) => {
-      // Yellow for low-confidence rows
       if (data.section === 'body' && sorted[data.row.index] && !sorted[data.row.index].confident) {
         data.cell.styles.fillColor = [255, 255, 180];
       }
     },
-    didDrawPage: (data) => {
-      // Page number footer
+    didDrawPage: () => {
       const pageNum = doc.internal.getCurrentPageInfo().pageNumber;
-      const total   = doc.internal.getNumberOfPages();
-      doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-      doc.setTextColor(150);
-      doc.text(`Página ${pageNum} / ${total}`, pageW - margin, 205, { align: 'right' });
+      const totalPg = doc.internal.getNumberOfPages();
+      doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(150);
+      doc.text(`Página ${pageNum} / ${totalPg}`, pageW - margin, pageH - 8, { align: 'right' });
       doc.setTextColor(0);
     }
   });
 
-  // ── Totals table ──
+  // ── Totals — correct formulas ──
+  // SUBTOTAL = viajes × precio
+  // IVA = SUBTOTAL × 0.16  (NOT ×1.16 — IVA is on top of subtotal)
+  // IVA RETENIDO = SUBTOTAL × -0.04
+  // ISR RETENIDO = SUBTOTAL × -0.0125
+  // TOTAL = SUBTOTAL + IVA + IVA_RET + ISR_RET
   const subtotal = sorted.length * precio;
-  const iva      = subtotal * 0.16;
-  const ivaRet   = iva * 0.25;           // IVA retenido 2/3
-  const isrRet   = subtotal * 0.0125;    // ISR retenido 1.25%
-  const total    = subtotal + iva - ivaRet - isrRet;
+  const iva      =  subtotal *  0.16;
+  const ivaRet   =  subtotal * -0.04;
+  const isrRet   =  subtotal * -0.0125;
+  const total    =  subtotal + iva + ivaRet + isrRet;
 
-  const fmt = n => `$ ${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmt = n => {
+    const abs = Math.abs(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return n < 0 ? `($  ${abs})` : `$  ${abs}`;
+  };
 
-  const summaryY = doc.lastAutoTable.finalY + 6;
+  const summaryY = doc.lastAutoTable.finalY + 7;
 
   doc.autoTable({
     startY: summaryY,
     margin: { left: margin, right: margin },
-    tableWidth: 120,
+    tableWidth: 100,
     body: [
-      [{ content: `TOTAL DE VIAJES DEL ${tiro.toUpperCase()}`, styles: { fontStyle: 'bold' } }, sorted.length],
-      [{ content: 'PRECIO POR VIAJE', styles: { fontStyle: 'bold' } }, fmt(precio)],
+      [{ content: `TOTAL DE VIAJES DEL ${tiro.toUpperCase()}`, styles: { fontStyle: 'bold' } },
+       { content: String(sorted.length), styles: { halign: 'right', fontStyle: 'bold' } }],
+      [{ content: 'PRECIO POR VIAJE', styles: { fontStyle: 'bold' } },
+       { content: fmt(precio), styles: { halign: 'right' } }],
       ['', ''],
-      [{ content: '', styles: {} }, { content: 'SUBTOTAL',      styles: { halign: 'right' } }, fmt(subtotal)],
-      ['', { content: 'IVA',             styles: { halign: 'right' } }, fmt(iva)],
-      ['', { content: 'IVA RETENIDO',    styles: { halign: 'right' } }, `(${fmt(ivaRet)})`],
-      ['', { content: 'ISR RETENIDO',    styles: { halign: 'right' } }, `(${fmt(isrRet)})`],
-      ['', { content: 'TOTAL', styles: { halign: 'right', fontStyle: 'bold' } }, { content: fmt(total), styles: { fontStyle: 'bold' } }],
+      [{ content: 'SUBTOTAL',     styles: { halign: 'right' } }, { content: fmt(subtotal), styles: { halign: 'right' } }],
+      [{ content: 'IVA',          styles: { halign: 'right' } }, { content: fmt(iva),      styles: { halign: 'right' } }],
+      [{ content: 'IVA RETENIDO', styles: { halign: 'right' } }, { content: fmt(ivaRet),   styles: { halign: 'right' } }],
+      [{ content: 'ISR RETENIDO', styles: { halign: 'right' } }, { content: fmt(isrRet),   styles: { halign: 'right' } }],
+      [{ content: 'TOTAL', styles: { halign: 'right', fontStyle: 'bold' } },
+       { content: fmt(total), styles: { halign: 'right', fontStyle: 'bold' } }],
     ],
-    styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.5, lineColor: [180, 180, 180], lineWidth: 0.2 },
+    styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
     columnStyles: {
-      0: { cellWidth: 60 },
+      0: { cellWidth: 65 },
       1: { cellWidth: 35, halign: 'right' },
-      2: { cellWidth: 35, halign: 'right' },
     },
     theme: 'plain',
   });
