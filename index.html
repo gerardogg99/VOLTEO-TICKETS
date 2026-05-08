@@ -345,7 +345,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v5';
+const APP_VERSION = 'v6';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
@@ -769,6 +769,8 @@ async function processUnit(unit) {
     : 'El año siempre es 2026.';
 
   const prompt = `Extrae los datos de cada ticket RCA de volteo visible. Puede haber más de uno.
+
+ORIENTACIÓN: El ticket puede estar normal, rotado 180° o en espejo. Lee el texto sin importar la orientación — si ves letras o números al revés, intérpretalos correctamente.
 
 PLACAS (empieza aquí, es el campo más legible):
 - Solo hay dos camiones posibles: VR-7129-C (G-01) y VS-4578-C (G-02)
