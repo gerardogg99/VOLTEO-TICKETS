@@ -504,7 +504,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v102';
+const APP_VERSION = 'v104';
 const API_URL = 'https://plain-union-3bb7.gerardo-gg99.workers.dev/';
 
 // ── Fleet master table ──
@@ -602,10 +602,31 @@ async function prepareImage(file) {
   const isHeic = /\.(heic|heif)$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif';
   let workFile = file;
   if (isHeic) {
+    let converted = false;
     try {
-      const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+      const blobOrArr = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+      const blob = Array.isArray(blobOrArr) ? blobOrArr[0] : blobOrArr;
       workFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
-    } catch(e) { console.warn('heic2any failed:', e); }
+      converted = true;
+    } catch(e) { console.warn('heic2any failed, trying native decode:', e); }
+
+    if (!converted) {
+      try {
+        const bitmap = await createImageBitmap(file);
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width; canvas.height = bitmap.height;
+        canvas.getContext('2d').drawImage(bitmap, 0, 0);
+        bitmap.close();
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.92));
+        if (!blob) throw new Error('canvas toBlob returned null');
+        workFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+        converted = true;
+      } catch(e2) { console.warn('native HEIC decode failed:', e2); }
+    }
+
+    if (!converted) {
+      throw new Error(`HEIC/HEIF no compatible con este navegador. Abre el archivo en Safari o conviértelo a JPG primero.`);
+    }
   }
   const b64 = await fileToBase64(workFile);
   const mime = workFile.type || 'image/jpeg';
@@ -670,18 +691,21 @@ async function handleFiles(fileList) {
   for (const f of [...fileList]) {
     if (!f.type.startsWith('image/') && !/\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) continue;
 
-    const { b64, mime, previewUrl } = await prepareImage(f);
-    const hash = await computeB64Hash(b64);
+    try {
+      const { b64, mime, previewUrl } = await prepareImage(f);
+      const hash = await computeB64Hash(b64);
 
-    // Check for content duplicate among already-loaded files
-    const existing = uploadedFiles.find(u => u.hash === hash);
-    if (existing) {
-      showDupWarning(f.name, existing.file.name, hash);
-      // Still add it so user can see both and decide which to remove
+      const existing = uploadedFiles.find(u => u.hash === hash);
+      if (existing) showDupWarning(f.name, existing.file.name, hash);
+
+      uploadedFiles.push({ id: fileCounter++, file: f, hash, previewUrl, pages: [b64], mimes: [mime], processed: false });
+    } catch(e) {
+      console.warn('Error preparando', f.name, e);
+      const log = document.getElementById('plog');
+      if (log) addLog(log, `✗ ${f.name}: error al cargar imagen`, 'err');
     }
-
-    uploadedFiles.push({ id: fileCounter++, file: f, hash, previewUrl, pages: [b64], mimes: [mime], processed: false });
   }
+  document.getElementById('fileInput').value = '';
   renderFileList();
   checkReady();
 }
@@ -1189,6 +1213,43 @@ function updateStats() {
   document.getElementById('weekLabel').textContent = detectWeekLabel();
 }
 
+function inferMissingFields() {
+  // Group tickets by source image
+  const bySource = {};
+  rows.forEach(r => { (bySource[r.sourceName] = bySource[r.sourceName] || []).push(r); });
+
+  for (const srcRows of Object.values(bySource)) {
+    // Infer missing fecha from siblings in same image
+    const knownFechas = [...new Set(srcRows.filter(r => r.fecha).map(r => r.fecha))];
+    if (knownFechas.length === 1) {
+      srcRows.forEach(r => {
+        if (r.fecha) return;
+        r.fecha = knownFechas[0]; r.inferido = true;
+        const tr = document.getElementById(`row-${r.id}`);
+        if (tr) { const inp = tr.querySelectorAll('.cell-edit')[0]; if (inp) inp.value = r.fecha; }
+      });
+    }
+
+    // Infer missing fleet (eco+placas) from siblings — only when both were unresolved
+    const knownEco = [...new Set(srcRows.filter(r => r.numero_economico).map(r => r.numero_economico))];
+    if (knownEco.length === 1) {
+      srcRows.forEach(r => {
+        if (r.numero_economico) return;
+        r.numero_economico = knownEco[0];
+        r.placas = TRUCKS[knownEco[0]]?.placas || '';
+        r.inferido = true; r.confident = true;
+        const tr = document.getElementById(`row-${r.id}`);
+        if (tr) {
+          const sel = tr.querySelector('select');
+          if (sel) { sel.value = r.numero_economico; sel.style.color = r.numero_economico === 'G-01' ? '#a78bfa' : '#34d399'; }
+          const placa = tr.querySelector('.placa-cell');
+          if (placa) placa.textContent = r.placas;
+        }
+      });
+    }
+  }
+}
+
 function finalize() {
   processing = false;
   const btn = document.getElementById('btnProcess');
@@ -1201,6 +1262,7 @@ function finalize() {
   updateStats();
 
   checkFolioConflicts();
+  inferMissingFields();
 
   // Re-sort and re-render entire table
   rows.sort((a, b) => {
