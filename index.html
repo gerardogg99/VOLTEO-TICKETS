@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>G3 Volteos — Captura de Tickets</title>
+<title>G3 Volteos – Captura de Tickets</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
@@ -50,7 +50,7 @@
   }
   .config-block { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; }
   label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; font-family: var(--mono); }
-  input[type=text], input[type=number], input[type=date], input[type=password], select {
+  input[type=text], input[type=number], select {
     width: 100%; background: var(--bg); border: 1px solid var(--border);
     color: var(--text); border-radius: 5px; padding: 7px 10px;
     font-family: var(--mono); font-size: 13px; outline: none; transition: border-color 0.2s;
@@ -58,6 +58,8 @@
   input:focus, select:focus { border-color: var(--accent2); }
   .field-group { margin-bottom: 0.5rem; }
   .field-group:last-child { margin-bottom: 0; }
+
+
 
   .upload-zone {
     border: 2px dashed var(--border); border-radius: 10px;
@@ -70,10 +72,17 @@
   .upload-text { font-size: 12px; color: var(--muted); line-height: 1.6; }
   .upload-text strong { color: var(--accent); }
 
+  /* file type pills */
   .type-pills { display: flex; gap: 6px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
-  .pill { font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px; border: 1px solid; }
+  .pill {
+    font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 2px 8px;
+    border-radius: 4px; border: 1px solid;
+  }
   .pill-img { color: #60a5fa; border-color: #1e3a5f; background: #0c1a30; }
 
+
+
+  /* file list */
   .file-list { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; }
   .file-item {
     display: flex; align-items: center; gap: 6px; padding: 4px 8px;
@@ -82,6 +91,20 @@
   .file-item .fi-icon { font-size: 13px; }
   .file-item .fi-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
   .file-item .fi-remove { cursor: pointer; color: var(--danger); font-size: 13px; line-height: 1; }
+  .file-item .fi-pages { color: var(--muted); font-size: 10px; }
+
+  /* excel zone */
+  .excel-zone {
+    border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem;
+    background: var(--surface2); display: flex; align-items: center; gap: 0.75rem;
+    cursor: pointer; position: relative; transition: border-color 0.2s;
+  }
+  .excel-zone:hover { border-color: var(--success); }
+  .excel-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .excel-icon { font-size: 1.4rem; }
+  .excel-info { flex: 1; min-width: 0; }
+  .excel-info .name { font-family: var(--mono); font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .excel-info .hint { font-size: 11px; color: var(--muted); }
 
   .btn-process {
     width: 100%; padding: 12px; border: none; border-radius: 8px;
@@ -133,20 +156,20 @@
   tbody tr:hover td { background: var(--surface2); }
   tbody tr.low-conf td { background: var(--warn-bg) !important; border-bottom-color: #2a1f00; }
   tbody tr.low-conf:hover td { background: #2e2600 !important; }
-  tbody tr.folio-bad td { background: #2a0000 !important; border-bottom-color: #3a0000; }
 
+  /* multi-ticket badge */
   .multi-badge {
     display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px;
     border-radius: 3px; font-size: 9px; font-weight: 600;
     background: #0c1a3a; color: #60a5fa; border: 1px solid #1e3a5f;
     margin-left: 4px; vertical-align: middle;
   }
+  .source-tag { font-size: 10px; color: var(--muted); }
+
 
   .conf-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; }
   .conf-high { background: #052e16; color: var(--success); }
   .conf-low { background: #2a1800; color: var(--accent); border: 1px solid #5a3a00; }
-  .conf-folio { background: #2a0000; color: var(--danger); border: 1px solid #5a0000; }
-
   .review-row-btn {
     display: inline-flex; align-items: center; gap: 3px; margin-left: 5px;
     padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;
@@ -157,6 +180,10 @@
 
   .thumb-wrap { width: 64px; height: 44px; overflow: hidden; border-radius: 4px; border: 1px solid var(--border); flex-shrink: 0; position: relative; }
   .thumb { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+
+
+  .rotate-btn { font-size: 10px; background: transparent; border: none; color: var(--muted); cursor: pointer; padding: 0 2px; line-height: 1; }
+  .rotate-btn:hover { color: var(--accent); }
 
   .cell-edit {
     background: transparent; border: none; border-bottom: 1px solid transparent;
@@ -182,7 +209,7 @@
   .week-label strong { color: var(--accent); }
   .warn-note { font-size: 11px; color: var(--accent); display: flex; align-items: center; gap: 4px; margin-left: auto; }
 
-  /* ── Lightbox ── */
+  /* ── Lightbox / zoom viewer ── */
   .lb-overlay {
     position: fixed; inset: 0; z-index: 9999;
     background: rgba(0,0,0,0.94);
@@ -204,7 +231,8 @@
   }
   .lb-img-wrap img {
     max-width: 100%; max-height: 100%; object-fit: contain;
-    transform-origin: center center; transition: transform 0.15s ease;
+    transform-origin: center center;
+    transition: transform 0.15s ease;
     user-select: none; pointer-events: none;
   }
   .lb-controls {
@@ -237,30 +265,10 @@
     padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between;
   }
-  .review-header-left { display: flex; align-items: center; gap: 0.75rem; }
   .review-title { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.06em; }
   .review-counter { font-family: var(--mono); font-size: 11px; color: var(--muted); }
-  .review-close-btn {
-    background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--muted);
-    font-size: 14px; width: 28px; height: 28px; border-radius: 50%;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s; flex-shrink: 0;
-  }
-  .review-close-btn:hover { background: rgba(239,68,68,0.15); border-color: var(--danger); color: var(--danger); }
-
-  /* Preview: cropped image with zoom-on-click */
-  .review-img-wrap {
-    background: var(--bg); display: flex; flex-direction: column;
-    align-items: center; justify-content: center; padding: 1rem; gap: 6px; min-height: 180px;
-  }
-  .review-img-wrap img {
-    max-width: 100%; max-height: 240px; object-fit: contain;
-    border-radius: 6px; cursor: zoom-in; border: 1px solid var(--border);
-    transition: opacity 0.15s;
-  }
-  .review-img-wrap img:hover { opacity: 0.9; }
-  .review-crop-hint { font-family: var(--mono); font-size: 10px; color: var(--muted); }
-
+  .review-img-wrap { background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 1rem; min-height: 200px; }
+  .review-img-wrap img { max-width: 100%; max-height: 260px; object-fit: contain; border-radius: 6px; cursor: zoom-in; }
   .review-fields { padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; }
   .review-field { display: flex; align-items: center; gap: 0.75rem; }
   .review-field label { font-family: var(--mono); font-size: 10px; color: var(--muted); width: 60px; flex-shrink: 0; text-transform: uppercase; }
@@ -270,8 +278,6 @@
     font-family: var(--mono); font-size: 13px; outline: none;
   }
   .review-field input:focus, .review-field select:focus { border-color: var(--accent2); }
-  .folio-warn { font-family: var(--mono); font-size: 10px; color: var(--danger); margin-left: 4px; }
-
   .review-actions { padding: 0.75rem 1.25rem 1rem; display: flex; gap: 0.75rem; border-top: 1px solid var(--border); margin-top: 0.25rem; }
   .btn-approve { flex: 1; padding: 10px; border: none; border-radius: 7px; background: var(--success); color: #000; font-family: var(--mono); font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
   .btn-approve:hover { background: #16a34a; }
@@ -299,8 +305,9 @@
 <div class="app">
   <aside class="sidebar">
 
+    <!-- Token de acceso — guardado en localStorage, nunca en el código -->
     <div>
-      <div class="section-label">🔐 Acceso</div>
+      <div class="section-label">🔑 Acceso</div>
       <div class="config-block">
         <div class="field-group">
           <label>TOKEN DE APP</label>
@@ -312,7 +319,7 @@
               style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);font-size:13px">👁</span>
           </div>
           <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">
-            Guardado solo en tu navegador. Debe coincidir con <code style="color:var(--accent2)">APP_TOKEN</code> en el Worker.
+            Guardado solo en tu navegador.<br>Debe coincidir con <code style="color:var(--accent2)">APP_TOKEN</code> en el Worker.
           </div>
         </div>
       </div>
@@ -328,7 +335,9 @@
             <span style="color:var(--muted);font-size:11px">→</span>
             <input type="date" id="cfgFechaFin" style="flex:1;font-size:11px;padding:4px 6px">
           </div>
-          <div style="font-size:10px;color:var(--muted);margin-top:3px">Ayuda a la IA a confirmar fechas dudosas</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">
+            Ayuda a la IA a confirmar fechas dudosas
+          </div>
         </div>
         <div class="field-group">
           <label>PRECIO POR VIAJE ($)</label>
@@ -355,6 +364,7 @@
     <div>
       <div class="section-label">☁️ Google Drive</div>
       <div class="config-block" style="padding:0.75rem">
+        
         <button onclick="openDrivePicker()" id="btnDrive"
           style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:border-color 0.2s"
           onmouseover="this.style.borderColor='#4285f4'" onmouseout="this.style.borderColor='var(--border)'">
@@ -365,18 +375,19 @@
     </div>
 
     <div>
-      <div class="section-label">📎 Archivos de tickets</div>
+      <div class="section-label">📁 Archivos de tickets</div>
       <div class="upload-zone" id="dropZone">
         <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this.files)">
         <div class="upload-icon">🖼️</div>
         <div class="upload-text">
           <strong>Arrastra aquí</strong> o haz clic<br>
-          Fotos · o arrastra una <strong>carpeta entera</strong>
+          Fotos — o arrastra una <strong>carpeta entera</strong>
         </div>
         <div class="type-pills">
           <span class="pill pill-img">JPG</span>
           <span class="pill pill-img">PNG</span>
           <span class="pill pill-img">HEIC</span>
+          
           <span class="pill" style="color:#a78bfa;border-color:#3b2a5f;background:#1a0f30">📁 FOLDER</span>
         </div>
       </div>
@@ -414,18 +425,11 @@
 <div class="review-modal hidden" id="reviewModal">
   <div class="review-box">
     <div class="review-header">
-      <div class="review-header-left">
-        <span class="review-title" id="reviewTitle">📋 REVISAR TICKET</span>
-        <span class="review-counter" id="reviewCounter"></span>
-      </div>
-      <button class="review-close-btn" id="btnCloseReview" title="Cerrar sin guardar">✕</button>
+      <span class="review-title" id="reviewTitle">🔍 REVISAR TICKET</span>
+      <span class="review-counter" id="reviewCounter"></span>
     </div>
     <div class="review-img-wrap">
-      <!-- src changes per ticket; data-full stores the full-image URL for lightbox -->
-      <img id="reviewImg" src="" alt="ticket">
-      <span class="review-crop-hint" id="reviewCropHint" style="display:none">
-        Vista recortada · haz clic para ver imagen completa
-      </span>
+      <img id="reviewImg" src="" onclick="openLightbox(this.src)" style="cursor:zoom-in">
     </div>
     <div class="review-fields">
       <div class="review-field">
@@ -435,14 +439,13 @@
       <div class="review-field">
         <label>Folio</label>
         <input type="text" id="rvFolio" placeholder="0000">
-        <span class="folio-warn" id="rvFolioWarn" style="display:none" title="Folio ilegible — no se puede exportar sin corregirlo">⛔</span>
       </div>
       <div class="review-field">
         <label>ECO</label>
         <select id="rvEco">
           <option value="">— ?</option>
-          <option value="G-01">G-01 → VR-7129-C</option>
-          <option value="G-02">G-02 → VS-4578-C</option>
+          <option value="G-01">G-01 — VR-7129-C</option>
+          <option value="G-02">G-02 — VS-4578-C</option>
         </select>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between">
@@ -478,78 +481,90 @@
 </div>
 
 <script>
-const APP_VERSION = 'v101';
-const API_URL = 'https://plain-union-3bb7.gerardo-gg99.workers.dev/';
+const APP_VERSION = 'v100';
+const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
-// ── Fleet master table (single source of truth) ──
-const TRUCKS = {
-  'G-01': { placas: 'VR-7129-C', patterns: ['VR-7129','VR7129','VR712','7129'] },
-  'G-02': { placas: 'VS-4578-C', patterns: ['VS-4578','VS4578','VS457','4578'] },
-};
-const PLACAS_TO_ECO = Object.fromEntries(
-  Object.entries(TRUCKS).map(([eco, cfg]) => [cfg.placas, eco])
-);
+// Google Drive config — user fills in their own Client ID
+const GDRIVE_CLIENT_ID = ''; // Set your Google OAuth client ID here if using Drive
+const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+let gapiReady = false;
 
-// ── State ──
-let uploadedFiles = [];
-let fileCounter = 0;
-let rows = [];
-let rowCounter = 0;
-let processing = false;
 
-// ── Init ──
+function checkReady() {
+  const hasFiles = uploadedFiles.length > 0;
+  document.getElementById('btnProcess').disabled = !hasFiles;
+}
+
+// Restore saved settings on load
 window.addEventListener('load', () => {
   document.getElementById('versionBadge').textContent = APP_VERSION;
-  const saved = localStorage.getItem('g3_app_token');
-  if (saved) document.getElementById('cfgAppToken').value = saved;
+
+  const savedToken = localStorage.getItem('g3_app_token');
+  if (savedToken) document.getElementById('cfgAppToken').value = savedToken;
+
+  const gcid = localStorage.getItem('g3_gcid');
+  if (gcid) {
+    showGdriveClientIdField();
+    setTimeout(() => {
+      const el = document.getElementById('cfgGdriveClientId');
+      if (el) el.value = gcid;
+    }, 100);
+  }
+  // Restore date range
   const fi = localStorage.getItem('g3_fecha_inicio');
   const ff = localStorage.getItem('g3_fecha_fin');
   if (fi) document.getElementById('cfgFechaInicio').value = fi;
   if (ff) document.getElementById('cfgFechaFin').value = ff;
 });
 
-function getAppToken() { return localStorage.getItem('g3_app_token') || ''; }
 
-function checkReady() {
-  const hasToken = getAppToken().length > 10;
-  const hasFiles = uploadedFiles.length > 0;
-  const btn = document.getElementById('btnProcess');
-  btn.disabled = !(hasToken && hasFiles);
-  btn.title = !hasToken ? 'Ingresa el token de acceso primero'
-            : !hasFiles ? 'Sube al menos una imagen primero' : '';
-}
 
-// ── Drag & drop (supports folders) ──
+
+let excelData = null;
+let excelFileName = "Conciliaciones_Semanales.xlsx";
+let uploadedFiles = []; // {id, file, type:'image', previewUrl, pages:[base64,...], mimes:[...]}
+let fileCounter = 0;   // stable IDs for uploadedFiles (separate from rowCounter)
+let rows = [];
+let processing = false;
+let rowCounter = 0;
+
+// ── DRAG & DROP — supports files AND folders ──
 const dropZone = document.getElementById('dropZone');
-dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
 dropZone.addEventListener('drop', async e => {
   e.preventDefault(); dropZone.classList.remove('drag');
   const items = [...(e.dataTransfer.items || [])];
+  // Support folder drops via FileSystemEntry API
   const allFiles = [];
   await Promise.all(items.map(item => {
     if (item.webkitGetAsEntry) {
       const entry = item.webkitGetAsEntry();
       return entry ? collectEntries(entry, allFiles) : Promise.resolve();
+    } else {
+      const f = item.getAsFile();
+      if (f) allFiles.push(f);
+      return Promise.resolve();
     }
-    const f = item.getAsFile();
-    if (f) allFiles.push(f);
-    return Promise.resolve();
   }));
-  handleFiles(allFiles.length ? allFiles : e.dataTransfer.files);
+  if (allFiles.length) handleFiles(allFiles);
+  else handleFiles(e.dataTransfer.files);
 });
 
+// Recursively collect files from folder entries
 function collectEntries(entry, collector) {
   return new Promise(resolve => {
     if (entry.isFile) {
       entry.file(f => { collector.push(f); resolve(); }, resolve);
     } else if (entry.isDirectory) {
       const reader = entry.createReader();
-      const readAll = (acc = []) => {
+      const readAll = (entries=[]) => {
         reader.readEntries(batch => {
           if (!batch.length) {
-            Promise.all(acc.map(e => collectEntries(e, collector))).then(resolve);
-          } else readAll([...acc, ...batch]);
+            Promise.all(entries.map(e => collectEntries(e, collector))).then(resolve);
+          } else {
+            readAll([...entries, ...batch]);
+          }
         }, resolve);
       };
       readAll();
@@ -557,88 +572,174 @@ function collectEntries(entry, collector) {
   });
 }
 
-// ── Image preparation ──
+// ── GOOGLE DRIVE PICKER ──
+function openDrivePicker() {
+  const status = document.getElementById('driveStatus');
+  // Load Google APIs dynamically
+  if (!document.getElementById('gapi-script')) {
+    status.textContent = 'Cargando Google API...';
+    status.style.color = 'var(--accent2)';
+    const s = document.createElement('script');
+    s.id = 'gapi-script';
+    s.src = 'https://apis.google.com/js/api.js';
+    s.onload = () => {
+      gapi.load('picker', () => { gapiReady = true; launchPicker(); });
+    };
+    document.head.appendChild(s);
+  } else if (gapiReady) {
+    launchPicker();
+  }
+}
+
+function launchPicker() {
+  const status = document.getElementById('driveStatus');
+  // Use implicit OAuth flow — no server needed
+  const clientId = document.getElementById('cfgGdriveClientId')?.value?.trim() || GDRIVE_CLIENT_ID;
+  if (!clientId) {
+    status.innerHTML = `<span style="color:var(--accent)">⚠ Necesitas configurar un Google Client ID.<br>
+      <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent2)">Obtenerlo aquí →</a></span>`;
+    showGdriveClientIdField();
+    return;
+  }
+
+  const tokenClient = google?.accounts?.oauth2?.initTokenClient({
+    client_id: clientId,
+    scope: GDRIVE_SCOPE,
+    callback: (resp) => {
+      if (resp.error) { status.textContent = 'Error de autenticación: ' + resp.error; return; }
+      buildPicker(resp.access_token);
+    }
+  });
+
+  if (tokenClient) {
+    tokenClient.requestAccessToken();
+  } else {
+    // Fallback: load GIS library
+    if (!document.getElementById('gis-script')) {
+      const s = document.createElement('script');
+      s.id = 'gis-script';
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.onload = launchPicker;
+      document.head.appendChild(s);
+    }
+  }
+}
+
+function buildPicker(accessToken) {
+  const status = document.getElementById('driveStatus');
+  status.textContent = '';
+  const picker = new google.picker.PickerBuilder()
+    .addView(new google.picker.DocsView()
+      .setIncludeFolders(false)
+      .setMimeTypes('image/jpeg,image/png,image/heic,image/webp'))
+    .setOAuthToken(accessToken)
+    .setTitle('Selecciona fotos de tickets')
+    .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+    .setCallback(async data => {
+      if (data.action !== google.picker.Action.PICKED) return;
+      const docs = data.docs || [];
+      status.textContent = `⬇ Descargando ${docs.length} archivo(s) de Drive...`;
+      status.style.color = 'var(--accent2)';
+      const downloaded = [];
+      for (const doc of docs) {
+        try {
+          const r = await fetch(`https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media`, {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          });
+          const blob = await r.blob();
+          const file = new File([blob], doc.name, { type: doc.mimeType });
+          downloaded.push(file);
+        } catch(e) {
+          status.textContent = `Error descargando ${doc.name}`;
+        }
+      }
+      if (downloaded.length) {
+        status.textContent = `✓ ${downloaded.length} archivo(s) de Drive listos`;
+        status.style.color = 'var(--success)';
+        handleFiles(downloaded);
+      }
+    })
+    .build();
+  picker.setVisible(true);
+}
+
+function showGdriveClientIdField() {
+  const block = document.querySelector('.gdrive-clientid');
+  if (block) { block.style.display = 'block'; return; }
+  const cfg = document.getElementById('btnDrive').parentElement;
+  const div = document.createElement('div');
+  div.className = 'gdrive-clientid field-group';
+  div.style.marginTop = '8px';
+  div.innerHTML = `<label>GOOGLE CLIENT ID</label>
+    <input type="text" id="cfgGdriveClientId" placeholder="xxxx.apps.googleusercontent.com"
+      style="font-size:11px" oninput="localStorage.setItem('g3_gcid',this.value)">`;
+  cfg.appendChild(div);
+  const saved = localStorage.getItem('g3_gcid');
+  if (saved) document.getElementById('cfgGdriveClientId').value = saved;
+}
+
+// Max base64 size to send to API (~4MB decoded = ~5.3MB base64, safe for Anthropic)
 const MAX_B64_BYTES = 4 * 1024 * 1024;
 
 async function prepareImage(file) {
-  const isHeic = /\.(heic|heif)$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif';
+  // 1. Convert HEIC/HEIF to JPEG first
+  const isHeic = /\.(heic|heif)$/i.test(file.name) ||
+                 file.type === 'image/heic' || file.type === 'image/heif';
   let workFile = file;
   if (isHeic) {
     try {
       const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
       workFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
-    } catch(e) { console.warn('heic2any failed:', e); }
+    } catch(e) {
+      console.warn('heic2any failed, sending raw:', e);
+    }
   }
 
+  // 2. Read to base64
   const b64 = await fileToBase64(workFile);
   const mime = workFile.type || 'image/jpeg';
+
+  // 3. Build preview URL from workFile (JPEG blob for HEIC, original otherwise)
   const previewUrl = URL.createObjectURL(workFile);
 
+  // 4. If under limit, done
   if (b64.length <= MAX_B64_BYTES) return { b64, mime, previewUrl };
 
-  // Resize until it fits
-  const img = await loadImageEl(workFile);
+  // 5. Too large — resize via canvas until it fits
+  const img = await loadImage(workFile);
   let scale = Math.sqrt(MAX_B64_BYTES / b64.length);
   let quality = 0.88;
   let result = b64;
-  for (let i = 0; i < 5; i++) {
+
+  for (let attempt = 0; attempt < 5; attempt++) {
     const canvas = document.createElement('canvas');
     canvas.width  = Math.round(img.naturalWidth  * scale);
     canvas.height = Math.round(img.naturalHeight * scale);
     canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
     result = canvas.toDataURL('image/jpeg', quality).split(',')[1];
     if (result.length <= MAX_B64_BYTES) break;
-    scale *= 0.8; quality = Math.max(0.7, quality - 0.05);
+    scale *= 0.8;
+    quality = Math.max(0.7, quality - 0.05);
   }
   return { b64: result, mime: 'image/jpeg', previewUrl };
 }
 
-function fileToBase64(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = e => res(e.target.result.split(',')[1]);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-}
-
-function loadImageEl(file) {
+function loadImage(file) {
   return new Promise((res, rej) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => { URL.revokeObjectURL(url); res(img); };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Image load failed')); };
     img.src = url;
   });
 }
 
-// Crop a region (bbox: {x,y,w,h} as 0-1 fractions) from an objectURL.
-// Returns a data URL, or null if bbox covers nearly the full image.
-async function cropImage(objectUrl, bbox, padding = 0.03) {
-  if (!bbox || (bbox.w >= 0.9 && bbox.h >= 0.9)) return null;
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const W = img.naturalWidth, H = img.naturalHeight;
-      const sx = Math.max(0, (bbox.x - padding) * W);
-      const sy = Math.max(0, (bbox.y - padding) * H);
-      const sw = Math.min(W - sx, (bbox.w + padding * 2) * W);
-      const sh = Math.min(H - sy, (bbox.h + padding * 2) * H);
-      const canvas = document.createElement('canvas');
-      canvas.width = sw; canvas.height = sh;
-      canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-      resolve(canvas.toDataURL('image/jpeg', 0.92));
-    };
-    img.onerror = () => resolve(null);
-    img.src = objectUrl;
-  });
-}
-
 async function handleFiles(fileList) {
-  for (const f of [...fileList]) {
+  const newFiles = [...fileList];
+  for (const f of newFiles) {
     if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
       const { b64, mime, previewUrl } = await prepareImage(f);
-      uploadedFiles.push({ id: fileCounter++, file: f, previewUrl, pages: [b64], mimes: [mime] });
+      uploadedFiles.push({ id: fileCounter++, file: f, type: 'image', previewUrl, pages: [b64], mimes: [mime], pageCount: 1 });
     }
   }
   renderFileList();
@@ -648,7 +749,7 @@ async function handleFiles(fileList) {
 function renderFileList() {
   const el = document.getElementById('fileList');
   el.innerHTML = '';
-  uploadedFiles.forEach(entry => {
+  uploadedFiles.forEach((entry) => {
     const div = document.createElement('div');
     div.className = 'file-item';
     div.innerHTML = `<span class="fi-icon">🖼️</span>
@@ -657,10 +758,11 @@ function renderFileList() {
     div.querySelector('.fi-remove').addEventListener('click', () => removeFile(entry.id));
     el.appendChild(div);
   });
-  const total = uploadedFiles.reduce((s, e) => s + e.pages.length, 0);
-  document.querySelector('.upload-text').innerHTML = total > 0
-    ? `<strong style="color:var(--success)">${uploadedFiles.length} archivo(s)</strong> · ${total} imagen(es)`
-    : '<strong>Arrastra aquí</strong> o haz clic<br>Fotos · o arrastra una <strong>carpeta entera</strong>';
+  const total = uploadedFiles.reduce((s,e)=>s+e.pages.length,0);
+  if (total > 0) {
+    document.querySelector('.upload-text').innerHTML =
+      `<strong style="color:var(--success)">${uploadedFiles.length} archivo(s)</strong> — ${total} imagen(es) total`;
+  }
 }
 
 function removeFile(fileId) {
@@ -673,104 +775,78 @@ function removeFile(fileId) {
   checkReady();
 }
 
-// ── Fleet cross-validation ──
+function loadExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  excelFileName = file.name;
+  document.getElementById('excelName').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = e => { excelData = e.target.result; };
+  reader.readAsArrayBuffer(file);
+  checkReady();
+}
+
+
+function checkReady() {
+  const hasToken = getAppToken().length > 10;
+  const hasFiles = uploadedFiles.length > 0;
+  document.getElementById('btnProcess').disabled = !(hasToken && hasFiles);
+  if (!hasToken) document.getElementById('btnProcess').title = 'Ingresa el token de acceso primero';
+  else if (!hasFiles) document.getElementById('btnProcess').title = 'Sube al menos una imagen primero';
+  else document.getElementById('btnProcess').title = '';
+}
+
+
+// Send file as-is to the API — no canvas, no recompression, maximum quality
+// Claude handles any orientation natively
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function getMimeType(file) {
+  if (file.type && file.type !== 'application/octet-stream') return file.type;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const map = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+                 gif: 'image/gif', webp: 'image/webp', heic: 'image/jpeg', heif: 'image/jpeg' };
+  return map[ext] || 'image/jpeg';
+}
+
+// ── GLOBAL CONFIG ──
+const TRUCKS = {
+  'G-01': { placas: 'VR-7129-C', patterns: ['VR-7129', 'VR7129', 'VR712', '7129'] },
+  'G-02': { placas: 'VS-4578-C', patterns: ['VS-4578', 'VS4578', 'VS457', '4578'] },
+};
+
+// ── DATE HELPERS — moved to global scope ──
+function buildFechasList(inicio, fin) {
+  const dias = [];
+  const d = new Date(inicio + 'T00:00:00');
+  const end = new Date(fin + 'T00:00:00');
+  while (d <= end) {
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const yyyy = d.getFullYear();
+    dias.push(`${dd}/${mm}/${yyyy}`);
+    d.setDate(d.getDate()+1);
+  }
+  return dias;
+}
+
+// Normalize a raw plate string to canonical form using TRUCKS config
 function normalizePlacas(raw) {
-  const up = (raw || '').toUpperCase().replace(/\s/g, '');
+  const up = (raw || '').toUpperCase().replace(/\s/g,'');
   for (const [eco, cfg] of Object.entries(TRUCKS)) {
     if (cfg.patterns.some(p => up.includes(p))) return { eco, placas: cfg.placas };
   }
   return null;
 }
 
-function crossValidateFleet(ecoRaw, placasRaw) {
-  const ecoClean   = (ecoRaw   || '').trim().toUpperCase();
-  const placasClean = (placasRaw || '').trim().toUpperCase();
-
-  const ecoValid    = ecoClean   in TRUCKS;
-  const placasValid = placasClean in PLACAS_TO_ECO;
-
-  if (ecoValid && placasValid) {
-    if (TRUCKS[ecoClean].placas === placasClean) {
-      return { eco: ecoClean, placas: placasClean, confident: true, inferido: false, mismatch: false };
-    }
-    // Mismatch — prefer placas (more legible per CLAUDE.md)
-    const inferredEco = PLACAS_TO_ECO[placasClean];
-    return { eco: inferredEco, placas: placasClean, confident: false, inferido: true, mismatch: true };
-  }
-  if (placasValid && !ecoValid) {
-    return { eco: PLACAS_TO_ECO[placasClean], placas: placasClean, confident: true, inferido: true, mismatch: false };
-  }
-  if (ecoValid && !placasValid) {
-    const normalized = normalizePlacas(placasRaw);
-    if (normalized && normalized.eco === ecoClean) {
-      return { eco: ecoClean, placas: normalized.placas, confident: true, inferido: false, mismatch: false };
-    }
-    return { eco: ecoClean, placas: TRUCKS[ecoClean].placas, confident: true, inferido: true, mismatch: false };
-  }
-  // Both ambiguous — try pattern match on raw placas
-  const patternMatch = normalizePlacas(placasRaw) || normalizePlacas(ecoRaw);
-  if (patternMatch) {
-    return { eco: patternMatch.eco, placas: patternMatch.placas, confident: true, inferido: true, mismatch: false };
-  }
-  return { eco: '', placas: '', confident: false, inferido: false, mismatch: false };
-}
-
-// Date: d/m/yy or D-M-26 → DD/MM/YYYY
-function normalizeDate(raw) {
-  if (!raw) return '';
-  const m = raw.trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
-  if (!m) return raw;
-  const [, d, mo, y] = m;
-  const year = y.length <= 2 ? '20' + y.padStart(2, '0') : y;
-  return `${d.padStart(2,'0')}/${mo.padStart(2,'0')}/${year}`;
-}
-
-// ── Cloudflare Worker call ──
-async function callWorker(messages, maxTokens = 800) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
-  try {
-    const resp = await fetch(API_URL, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', 'x-app-token': getAppToken() },
-      body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: maxTokens, messages }),
-    });
-    clearTimeout(timeout);
-    if (!resp.ok) {
-      const txt = await resp.text();
-      throw new Error(`API ${resp.status}: ${txt.substring(0, 120)}`);
-    }
-    const data = await resp.json();
-    return (data.content?.[0]?.text || '').trim();
-  } catch(e) {
-    clearTimeout(timeout);
-    throw e;
-  }
-}
-
-// ── Date helpers ──
-function buildFechasList(inicio, fin) {
-  const dias = [];
-  const d = new Date(inicio + 'T00:00:00');
-  const end = new Date(fin + 'T00:00:00');
-  while (d <= end) {
-    dias.push(`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`);
-    d.setDate(d.getDate() + 1);
-  }
-  return dias;
-}
-
-function parseDate(s) {
-  if (!s) return null;
-  const parts = s.split(/[\/\-]/);
-  if (parts.length < 3) return null;
-  const [d, m, y] = parts.map(Number);
-  if (!d || !m || !y) return null;
-  return new Date(y < 100 ? 2000 + y : y, m - 1, d);
-}
-
-// ── Processing ──
+// ── MAIN PROCESSING ──
 async function startProcessing() {
   if (processing || uploadedFiles.length === 0) return;
   processing = true; rows = []; rowCounter = 0;
@@ -782,7 +858,6 @@ async function startProcessing() {
   document.getElementById('emptyState') && (document.getElementById('emptyState').style.display = 'none');
   document.getElementById('bottomBar').style.display = 'flex';
   document.getElementById('btnExport').disabled = true;
-  document.getElementById('btnPdf').disabled = true;
 
   const main = document.getElementById('mainPanel');
   main.innerHTML = `
@@ -812,6 +887,7 @@ async function startProcessing() {
       </table>
     </div>`;
 
+  // Build work units: one per image/page
   const units = [];
   for (const entry of uploadedFiles) {
     entry.pages.forEach((b64, pi) => {
@@ -824,59 +900,81 @@ async function startProcessing() {
     const batch = units.slice(i, Math.min(i + BATCH, units.length));
     await Promise.all(batch.map(u => processUnit(u)));
     setProgress(Math.min(i + BATCH, units.length), units.length,
-      `Procesando imagen ${Math.min(i + BATCH, units.length)} de ${units.length}...`);
+      `Procesando imagen ${Math.min(i+BATCH, units.length)} de ${units.length}...`);
   }
 
   finalize();
 }
 
+function getAppToken() {
+  return localStorage.getItem('g3_app_token') || '';
+}
+
+async function callWorker(messages, maxTokens = 800) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-app-token': getAppToken(),
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: maxTokens,
+        messages,
+      })
+    });
+    clearTimeout(timeout);
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`API ${resp.status}: ${errText.substring(0,120)}`);
+    }
+    const data = await resp.json();
+    return (data.content?.[0]?.text || '').trim();
+  } catch(e) {
+    clearTimeout(timeout);
+    throw e;
+  }
+}
+
 async function processUnit(unit) {
   const log = document.getElementById('plog');
-  addLog(log, `🔍 Analizando ${unit.sourceName}...`, 'info');
+  const label = unit.sourceName;
 
-  const fechaInicio   = document.getElementById('cfgFechaInicio').value;
-  const fechaFin      = document.getElementById('cfgFechaFin').value;
+  addLog(log, `🔍 Analizando ${label}...`, 'info');
+
+  const fechaInicio = document.getElementById('cfgFechaInicio').value;
+  const fechaFin    = document.getElementById('cfgFechaFin').value;
   const fechasValidas = (fechaInicio && fechaFin) ? buildFechasList(fechaInicio, fechaFin) : [];
-  const rangoFechas   = fechasValidas.length
-    ? `Las fechas válidas esta semana son: ${fechasValidas.join(', ')}. Usa día y mes que lees para encontrar la fecha exacta — no elijas "la más cercana".`
+
+  const rangoFechas = fechasValidas.length
+    ? `Las fechas válidas esta semana son: ${fechasValidas.join(', ')}. Usa el DÍA y MES que lees para encontrar la fecha exacta en esta lista — no elijas "la más cercana", usa el día y mes correctos.`
     : 'El año siempre es 2026.';
 
-  const prompt = `Extrae los datos de CADA ticket RCA de volteo visible en la imagen.
+  const prompt = `Extrae los datos de cada ticket RCA de volteo visible. Puede haber más de uno.
 
-ORIENTACIÓN: el ticket puede estar rotado o en espejo — lee el texto en cualquier orientación.
-
-━━ REGLAS ESTRICTAS ━━
+ORIENTACIÓN: El ticket puede estar normal, rotado 180° o en espejo. Lee el texto sin importar la orientación — si ves letras o números al revés, intérpretalos correctamente.
 
 PLACAS (empieza aquí, es el campo más legible):
-• Solo existen 2 camiones: VR-7129-C (G-01) y VS-4578-C (G-02)
-• Si ves "VR" o "7129" → VR-7129-C / G-01
-• Si ves "VS" o "4578" → VS-4578-C / G-02
-• Si placas ilegible pero ECO legible → infiere placas de la tabla anterior
-• Si ambos ilegibles → devuelve "" en ambos campos
+- Solo hay dos camiones posibles: VR-7129-C (G-01) y VS-4578-C (G-02)
+- "VR" o "7129" → VR-7129-C / G-01
+- "VS" o "4578" → VS-4578-C / G-02
+- Si placas ilegibles, usa el campo "CAMIÓN No. ECO:"
 
-FOLIO (número pre-impreso en rojo, esquina superior derecha, 4 dígitos):
-• CRÍTICO: si no puedes leerlo con certeza → devuelve "" y folio_legible: false
-• NUNCA inventes ni adivines el folio — es un documento legal
+FOLIO: número pre-impreso en rojo dentro de un recuadro (4 dígitos). No es manuscrito.
 
-FECHA (manuscrita, formato D-M-26 sin ceros):
-• ${rangoFechas}
-• Normaliza siempre a DD/MM/YYYY. Ejemplo: "1-5-26" → "01/05/2026"
-• Si dígito ambiguo → confident: false
+FECHA: manuscrita, formato D-M-26 sin ceros. ${rangoFechas}
+Ejemplos: "1-5-26"=01/05/2026, "29-4-26"=29/04/2026, "4-5-26"=04/05/2026. Salida: DD/MM/YYYY.
+Si el año es un solo dígito ambiguo (ej: "1-5-4"), ignóralo — usa día y mes para encontrar la fecha en el rango.
+Si el día es visualmente ambiguo (no puedes distinguirlo con certeza), pon confident=false.
 
-BBOX (caja del ticket como fracción 0.0–1.0 del ancho/alto total de la imagen):
-• Un solo ticket en la imagen → {"x":0,"y":0,"w":1,"h":1}
-• Múltiples tickets → estima la posición de cada uno
+Campo ilegible → "" y confident=false.
 
 Responde SOLO JSON sin texto extra:
-{"tickets":[{
-  "fecha": "DD/MM/YYYY",
-  "folio": "0984",
-  "folio_legible": true,
-  "numero_economico": "G-02",
-  "placas": "VS-4578-C",
-  "confident": true,
-  "bbox": {"x": 0.0, "y": 0.0, "w": 1.0, "h": 1.0}
-}]}`;
+{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","placas":"VS-4578-C","confident":true}]}`;
 
   let raw = '';
   try {
@@ -884,11 +982,11 @@ Responde SOLO JSON sin texto extra:
       role: 'user',
       content: [
         { type: 'image', source: { type: 'base64', media_type: unit.mime, data: unit.b64 } },
-        { type: 'text',  text: prompt },
-      ],
-    }], 700);
+        { type: 'text', text: prompt }
+      ]
+    }], 600);
   } catch(e) {
-    addLog(log, `✗ ${unit.sourceName}: ${e.message}`, 'err');
+    addLog(log, `✗ ${label}: ${e.message}`, 'err');
     return;
   }
 
@@ -898,66 +996,64 @@ Responde SOLO JSON sin texto extra:
   catch { parsed = { tickets: [] }; }
 
   const tickets = Array.isArray(parsed.tickets) ? parsed.tickets : [];
-  if (tickets.length === 0) { addLog(log, `⚠ ${unit.sourceName}: sin tickets detectados`, 'warn'); return; }
+  if (tickets.length === 0) { addLog(log, `⚠ ${label}: sin tickets`, 'warn'); return; }
 
   const multi = tickets.length > 1;
-  if (multi) addLog(log, `📦 ${unit.sourceName}: ${tickets.length} tickets en una imagen`, 'info');
+  if (multi) addLog(log, `📦 ${label}: ${tickets.length} tickets`, 'info');
 
   const tiro     = document.getElementById('cfgTiro').value;
   const servicio = document.getElementById('cfgServicio').value;
-  const capacidad = document.getElementById('cfgCapacidad').value;
+  const capacidad= document.getElementById('cfgCapacidad').value;
 
-  for (const t of tickets) {
-    // Fleet cross-validation
-    const fleet = crossValidateFleet(t.numero_economico, t.placas);
+  tickets.forEach(t => {
+    const norm = normalizePlacas(t.placas);
+    let eco, placas, confident = t.confident !== false;
 
-    // Date normalization + range correction
-    let fecha = normalizeDate(t.fecha || '');
-    let confident = (t.confident !== false) && fleet.confident;
+    if (norm) {
+      eco = norm.eco; placas = norm.placas;
+    } else {
+      eco    = (t.numero_economico || '').trim();
+      placas = TRUCKS[eco]?.placas || '';
+      if (!placas) confident = false;
+    }
+
+    // Fix partial year — "01/05/4" means year was cut off, complete as 2026
+    let fecha = t.fecha || '';
+    if (fecha) {
+      fecha = fecha.replace(/^(\d{1,2})\/(\d{1,2})\/(\d{1,2})$/, (_, d, m, y) => {
+        const fullY = y.length === 1 ? '202' + y : (y.length === 2 ? '20' + y : y);
+        return `${d.padStart(2,'0')}/${m.padStart(2,'0')}/${fullY}`;
+      });
+    }
+
+    // If date not in valid range, try to find by matching day+month (ignores wrong year)
     if (fecha && fechasValidas.length && !fechasValidas.includes(fecha)) {
       const parts = fecha.split('/');
       if (parts.length === 3) {
         const [dd, mm] = parts;
         const byDayMonth = fechasValidas.find(f => f.startsWith(`${dd}/${mm}/`));
-        fecha = byDayMonth || fecha;
-        if (!byDayMonth) confident = false;
+        if (byDayMonth) {
+          fecha = byDayMonth; // correct match by day+month
+        } else {
+          confident = false; // day+month not in range — flag for manual review
+        }
       }
     }
-
-    // Folio
-    const folioLegible = t.folio_legible !== false && (t.folio || '').trim().length > 0;
-    const folio = folioLegible ? (t.folio || '').trim() : '';
-
-    if (!folioLegible) confident = false;
-    if (fleet.mismatch) confident = false;
-
-    // Generate crop preview if multi-ticket
-    const bbox = t.bbox || { x: 0, y: 0, w: 1, h: 1 };
-    const cropUrl = multi ? await cropImage(unit.entry.previewUrl, bbox) : null;
 
     const row = {
       id: rowCounter++,
       previewUrl: unit.entry.previewUrl,
-      cropUrl,
-      sourceName: unit.sourceName,
+      sourceName: label,
       multiTicket: multi,
-      fecha,
-      folio,
-      folioLegible,
-      numero_economico: fleet.eco,
-      placas: fleet.placas,
-      inferido: fleet.inferido,
-      mismatch: fleet.mismatch,
-      tiro, servicio, capacidad,
-      confident,
+      fecha, folio: t.folio || '',
+      numero_economico: eco, placas,
+      tiro, servicio, capacidad, confident,
     };
     rows.push(row);
     renderRow(row);
-
-    const status = !folioLegible ? '⛔' : confident ? '✓' : '⚠';
-    const cls    = !folioLegible ? 'err' : confident ? 'ok' : 'warn';
-    addLog(log, `${status} Folio ${folio || '?'} | ${fleet.eco || '?'} | ${fecha || '?'}`, cls);
-  }
+    addLog(log, `${confident ? '✓' : '⚠'} Folio ${row.folio||'—'} | ${eco||'—'} | ${fecha||'—'}`,
+      confident ? 'ok' : 'warn');
+  });
 }
 
 function renderRow(row) {
@@ -968,65 +1064,65 @@ function renderRow(row) {
 
   const tr = document.createElement('tr');
   tr.id = `row-${row.id}`;
-  if (!row.folioLegible) tr.classList.add('folio-bad');
-  else if (!row.confident) tr.classList.add('low-conf');
+  if (!row.confident) tr.classList.add('low-conf');
 
-  // Thumbnail — shows crop when available
+  // ── Source cell: clickable thumb only (no rotate buttons in table) ──
   const srcTd = document.createElement('td');
+
   const thumbWrap = document.createElement('div');
   thumbWrap.className = 'thumb-wrap';
   thumbWrap.style.cursor = 'zoom-in';
+
   const img = document.createElement('img');
   img.className = 'thumb';
-  img.src = row.cropUrl || row.previewUrl;
+  img.src = row.previewUrl;
+  img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
   thumbWrap.appendChild(img);
+  // Always opens lightbox — works for both OK and Revisar rows
   thumbWrap.addEventListener('click', () => openLightbox(row.previewUrl));
   srcTd.appendChild(thumbWrap);
+
   if (row.multiTicket) {
     const badge = document.createElement('span');
     badge.className = 'multi-badge';
-    badge.textContent = '⊞multi';
+    badge.textContent = '×multi';
     srcTd.appendChild(badge);
   }
 
-  // Fecha
+  // ── Fecha cell ──
   const fechaTd = document.createElement('td');
   const fechaInput = document.createElement('input');
   fechaInput.className = 'cell-edit';
   fechaInput.value = row.fecha;
   fechaInput.placeholder = 'DD/MM/YYYY';
-  fechaInput.addEventListener('change', () => { rows.find(r => r.id === row.id).fecha = fechaInput.value; updateStats(); });
+  fechaInput.addEventListener('change', () => {
+    rows.find(r => r.id === row.id).fecha = fechaInput.value;
+    updateStats();
+  });
   fechaTd.appendChild(fechaInput);
 
-  // Folio
+  // ── Folio cell ──
   const folioTd = document.createElement('td');
   const folioInput = document.createElement('input');
   folioInput.className = 'cell-edit';
   folioInput.value = row.folio;
   folioInput.placeholder = '0000';
-  folioInput.style.width = '70px';
+  folioInput.style.width = '80px';
   folioInput.addEventListener('change', () => {
-    const r = rows.find(x => x.id === row.id);
-    r.folio = folioInput.value.trim();
-    r.folioLegible = r.folio.length > 0;
-    if (r.folioLegible) tr.classList.remove('folio-bad');
-    updateStats();
+    rows.find(r => r.id === row.id).folio = folioInput.value;
   });
   folioTd.appendChild(folioInput);
-  if (!row.folioLegible) {
-    const warn = document.createElement('span');
-    warn.textContent = ' ⛔'; warn.style.color = 'var(--danger)'; warn.title = 'Folio ilegible';
-    folioTd.appendChild(warn);
-  }
 
-  // ECO select
+  // ── ECO select cell ──
   const ecoTd = document.createElement('td');
   const ecoColor = row.numero_economico === 'G-01' ? '#a78bfa' : row.numero_economico === 'G-02' ? '#34d399' : 'var(--muted)';
   const ecoSel = document.createElement('select');
   ecoSel.style.cssText = `background:var(--bg);border:none;border-bottom:1px solid transparent;color:${ecoColor};font-family:var(--mono);font-size:12px;outline:none;`;
+  // Blank option for when ECO is unknown
   ['', 'G-01', 'G-02'].forEach(val => {
     const opt = document.createElement('option');
-    opt.value = val; opt.textContent = val || '— ?';
+    opt.value = val;
+    opt.textContent = val || '— ?';
     if (row.numero_economico === val) opt.selected = true;
     ecoSel.appendChild(opt);
   });
@@ -1040,28 +1136,22 @@ function renderRow(row) {
   });
   ecoTd.appendChild(ecoSel);
 
+  // ── Placas cell ──
   const placaTd = document.createElement('td');
   placaTd.className = 'placa-cell';
   placaTd.style.cssText = 'color:var(--muted);font-size:11px';
   placaTd.textContent = row.placas;
 
+  // ── Tiro cell ──
   const tiroTd = document.createElement('td');
   tiroTd.innerHTML = `<span class="tiro-tag">${row.tiro.split('/')[0].trim()}</span>`;
 
-  // Confidence badge
+  // ── Confidence cell + manual review button ──
   const confTd = document.createElement('td');
   confTd.style.whiteSpace = 'nowrap';
   const confBadge = document.createElement('span');
-  if (!row.folioLegible) {
-    confBadge.className = 'conf-badge conf-folio';
-    confBadge.textContent = '⛔ Folio';
-  } else if (!row.confident) {
-    confBadge.className = 'conf-badge conf-low';
-    confBadge.textContent = '⚠ Revisar';
-  } else {
-    confBadge.className = 'conf-badge conf-high';
-    confBadge.textContent = '✓ OK';
-  }
+  confBadge.className = row.confident ? 'conf-badge conf-high' : 'conf-badge conf-low';
+  confBadge.textContent = row.confident ? '✓ OK' : '⚠ Revisar';
   const reviewBtn = document.createElement('button');
   reviewBtn.className = 'review-row-btn';
   reviewBtn.textContent = '✎';
@@ -1069,24 +1159,25 @@ function renderRow(row) {
   reviewBtn.addEventListener('click', () => openRowReview(row.id));
   confTd.append(confBadge, reviewBtn);
 
+  // ── Row number cell ──
   const numTd = document.createElement('td');
   numTd.style.cssText = 'color:var(--muted);width:28px';
-  numTd.textContent = rows.length;
+  numTd.textContent = row._sortedIdx ?? rows.length;
 
   tr.append(numTd, srcTd, fechaTd, folioTd, ecoTd, placaTd, tiroTd, confTd);
-  document.getElementById('tbody').appendChild(tr);
+  tbody.appendChild(tr);
   updateStats();
 }
 
-function setProgress(done, total, title = '') {
-  const pct = Math.round(done / total * 100);
-  document.getElementById('pct').textContent = pct + '%';
-  document.getElementById('pbar').style.width = pct + '%';
+function setProgress(done, total, title='') {
+  const pct = Math.round(done/total*100);
+  document.getElementById('pct').textContent = pct+'%';
+  document.getElementById('pbar').style.width = pct+'%';
   if (title) document.getElementById('progressTitle').textContent = title;
   document.getElementById('headerMeta').textContent = `${done}/${total} imágenes procesadas`;
 }
 
-function addLog(el, text, cls = '') {
+function addLog(el, text, cls='') {
   if (!el) return;
   const d = document.createElement('div');
   d.className = 'log-line ' + cls;
@@ -1096,20 +1187,20 @@ function addLog(el, text, cls = '') {
 }
 
 function updateStats() {
-  const ok     = rows.filter(r => r.confident && r.folioLegible).length;
-  const warn   = rows.filter(r => !r.confident || !r.folioLegible).length;
-  const g01    = rows.filter(r => r.numero_economico === 'G-01').length;
-  const g02    = rows.filter(r => r.numero_economico === 'G-02').length;
+  const ok   = rows.filter(r=>r.confident).length;
+  const warn = rows.filter(r=>!r.confident).length;
+  const g01  = rows.filter(r=>r.numero_economico.includes('G-01')).length;
+  const g02  = rows.filter(r=>r.numero_economico.includes('G-02')).length;
   const precio = parseFloat(document.getElementById('cfgPrecio')?.value) || 900;
-
+  const subtotal = rows.length * precio;
   document.getElementById('sOk').textContent = ok;
   document.getElementById('sWarn').textContent = warn;
   document.getElementById('sTotal').textContent = rows.length;
   document.getElementById('sG01').textContent = g01;
   document.getElementById('sG02').textContent = g02;
   const sSub = document.getElementById('sSubtotal');
-  if (sSub) sSub.textContent = '$' + (rows.length * precio).toLocaleString('es-MX', { maximumFractionDigits: 0 });
-  document.getElementById('warnNote').style.display = warn > 0 ? 'flex' : 'none';
+  if (sSub) sSub.textContent = '$' + subtotal.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  if (warn > 0) document.getElementById('warnNote').style.display = 'flex';
   document.getElementById('weekLabel').textContent = detectWeekLabel();
 }
 
@@ -1117,39 +1208,46 @@ function finalize() {
   processing = false;
   const btn = document.getElementById('btnProcess');
   btn.classList.remove('running');
-  btn.innerHTML = '<span>✓</span> LISTO · procesar de nuevo';
+  btn.innerHTML = '<span>✓</span> LISTO — procesar de nuevo';
   btn.disabled = false;
   document.getElementById('btnExport').disabled = rows.length === 0;
-  document.getElementById('btnPdf').disabled    = rows.length === 0;
+  document.getElementById('btnPdf').disabled = rows.length === 0;
   updateStats();
 
-  // Sort: ECO (G-01 first), then date, then folio
+  // Sort table: ECO (G-01 first) then date ascending
   rows.sort((a, b) => {
-    const ea = a.numero_economico || 'ZZ', eb = b.numero_economico || 'ZZ';
-    if (ea !== eb) return ea.localeCompare(eb);
+    const ecoA = a.numero_economico || 'ZZ';
+    const ecoB = b.numero_economico || 'ZZ';
+    if (ecoA !== ecoB) return ecoA.localeCompare(ecoB);
     const da = parseDate(a.fecha), db = parseDate(b.fecha);
-    if (da && db && da - db !== 0) return da - db;
-    return (a.folio || '').localeCompare(b.folio || '');
+    if (da && db) return da - db;
+    return 0;
   });
 
+  // Re-render tbody in sorted order
   const tbody = document.getElementById('tbody');
   if (tbody) {
     tbody.innerHTML = '';
-    rows.forEach((row, i) => { row._sortedIdx = i + 1; renderRow(row); });
+    rows.forEach((row, i) => {
+      row._sortedIdx = i + 1; // update display number
+      renderRow(row);
+    });
   }
 
-  document.getElementById('headerMeta').textContent = `${rows.length} tickets listos · revisa y descarga`;
+  document.getElementById('headerMeta').textContent = `${rows.length} tickets listos — revisa y descarga`;
+
+  // Launch review for ALL tickets so user can verify each one
   if (rows.length > 0) startReview([...rows]);
 }
 
-// ── Review modal ──
+// ── REVIEW MODAL ──
 let reviewQueue = [];
-let reviewIdx   = 0;
+let reviewIdx = 0;
 let reviewRotDeg = 0;
 
-function startReview(queue, startIdx = 0) {
+function startReview(queue, manual = false, startIdx = 0) {
   reviewQueue = queue;
-  reviewIdx   = startIdx;
+  reviewIdx = startIdx;
   showReviewItem();
 }
 
@@ -1160,44 +1258,37 @@ function showReviewItem() {
     return;
   }
   const row = reviewQueue[reviewIdx];
-  reviewRotDeg = 0;
+  reviewRotDeg = thumbRotation[row.id] || 0;
 
   document.getElementById('reviewModal').classList.remove('hidden');
-  document.getElementById('reviewCounter').textContent = `${reviewIdx + 1} / ${reviewQueue.length}`;
+  document.getElementById('reviewCounter').textContent =
+    `${reviewIdx + 1} / ${reviewQueue.length}`;
   document.getElementById('rvSource').textContent = row.sourceName;
   document.getElementById('rvFecha').value = row.fecha;
   document.getElementById('rvFolio').value = row.folio;
-  document.getElementById('rvEco').value   = row.numero_economico || '';
+  document.getElementById('rvEco').value = row.numero_economico || '';
 
-  // Folio warning icon
-  document.getElementById('rvFolioWarn').style.display = row.folioLegible ? 'none' : 'inline';
-
+  // Show confidence state in title
   const title = document.getElementById('reviewTitle');
-  if (!row.folioLegible) {
-    title.textContent = '⛔ FOLIO ILEGIBLE'; title.style.color = 'var(--danger)';
-  } else if (!row.confident) {
-    title.textContent = '⚠ REVISAR TICKET'; title.style.color = 'var(--accent)';
-  } else {
-    title.textContent = '✓ TICKET OK';       title.style.color = 'var(--success)';
-  }
+  title.textContent = row.confident ? '✓ TICKET APROBADO' : '⚠ REVISAR TICKET';
+  title.style.color = row.confident ? 'var(--success)' : 'var(--accent)';
 
+  // Show/hide prev button
   document.getElementById('btnPrev').style.display = reviewIdx > 0 ? '' : 'none';
+
+  // Last ticket: change approve text
   document.getElementById('btnApprove').textContent =
     reviewIdx === reviewQueue.length - 1 ? '✓ Aprobar y cerrar' : '✓ Aprobar';
 
-  // Preview: cropped if available, full otherwise
-  const reviewImg = document.getElementById('reviewImg');
-  const hasCrop = !!(row.cropUrl);
-  reviewImg.src                  = hasCrop ? row.cropUrl : row.previewUrl;
-  reviewImg.dataset.fullUrl      = row.previewUrl;
-  reviewImg.style.transform      = '';
-  reviewImg.style.maxHeight      = '240px';
-  document.getElementById('reviewCropHint').style.display = hasCrop ? '' : 'none';
+  const img = document.getElementById('reviewImg');
+  img.src = row.previewUrl || '';
+  img.style.transform = reviewRotDeg ? `rotate(${reviewRotDeg}deg)` : '';
+  img.style.maxHeight = (reviewRotDeg === 90 || reviewRotDeg === 270) ? '220px' : '260px';
 }
 
 function applyReview() {
   const row = reviewQueue[reviewIdx];
-  const r   = rows.find(x => x.id === row.id);
+  const r = rows.find(x => x.id === row.id);
   if (!r) return;
 
   r.fecha  = document.getElementById('rvFecha').value.trim();
@@ -1205,13 +1296,13 @@ function applyReview() {
   const eco = document.getElementById('rvEco').value;
   r.numero_economico = eco;
   r.placas = TRUCKS[eco]?.placas || '';
-  r.folioLegible = r.folio.length > 0;
   r.confident = true;
 
   // Update the table row
   const tr = document.getElementById(`row-${r.id}`);
   if (tr) {
-    tr.classList.remove('low-conf', 'folio-bad');
+    tr.classList.remove('low-conf');
+    // Update visible inputs in the table
     const inputs = tr.querySelectorAll('.cell-edit');
     if (inputs[0]) inputs[0].value = r.fecha;
     if (inputs[1]) inputs[1].value = r.folio;
@@ -1223,287 +1314,28 @@ function applyReview() {
     if (conf) { conf.className = 'conf-badge conf-high'; conf.textContent = '✓ OK'; }
   }
 
+  thumbRotation[row.id] = reviewRotDeg;
   reviewIdx++;
   showReviewItem();
 }
 
-function skipReview()  { reviewIdx++; showReviewItem(); }
-function prevReview()  { if (reviewIdx > 0) { reviewIdx--; showReviewItem(); } }
-function closeReview() { document.getElementById('reviewModal').classList.add('hidden'); }
-
-function openRowReview(rowId) {
-  const idx = rows.findIndex(r => r.id === rowId);
-  if (idx !== -1) startReview([...rows], idx);
+function skipReview() {
+  reviewIdx++;
+  showReviewItem();
 }
 
-// ── Lightbox ──
-let lbZoom = 1, lbRot = 0;
-
-function openLightbox(src) {
-  lbZoom = 1; lbRot = 0;
-  document.getElementById('lbImg').src = src;
-  applyLbTransform();
-  document.getElementById('lbOverlay').classList.remove('hidden');
-}
-
-function applyLbTransform() {
-  document.getElementById('lbImg').style.transform = `rotate(${lbRot}deg) scale(${lbZoom})`;
-}
-
-function closeLightbox() {
-  document.getElementById('lbOverlay').classList.add('hidden');
-  document.getElementById('lbImg').src = '';
-}
-
-// ── Week label ──
-function detectWeekLabel() {
-  const dates = rows.map(r => parseDate(r.fecha)).filter(Boolean).sort((a, b) => a - b);
-  if (!dates.length) return '—';
-  const fmt = d => `${d.getDate()} ${['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][d.getMonth()]}`;
-  return `${fmt(dates[0])} – ${fmt(dates[dates.length - 1])}`;
-}
-
-// ── Google Drive ──
-let gapiReady = false;
-const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
-
-function openDrivePicker() {
-  const status = document.getElementById('driveStatus');
-  if (!document.getElementById('gapi-script')) {
-    status.textContent = 'Cargando Google API...';
-    status.style.color = 'var(--accent2)';
-    const s = document.createElement('script');
-    s.id = 'gapi-script';
-    s.src = 'https://apis.google.com/js/api.js';
-    s.onload = () => { gapi.load('picker', () => { gapiReady = true; launchPicker(); }); };
-    document.head.appendChild(s);
-  } else if (gapiReady) launchPicker();
-}
-
-function launchPicker() {
-  const status = document.getElementById('driveStatus');
-  const clientId = document.getElementById('cfgGdriveClientId')?.value?.trim() || '';
-  if (!clientId) {
-    status.innerHTML = `<span style="color:var(--accent)">⚠ Necesitas un Google Client ID.<br>
-      <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent2)">Obtenerlo aquí →</a></span>`;
-    showGdriveClientIdField();
-    return;
-  }
-  const tokenClient = google?.accounts?.oauth2?.initTokenClient({
-    client_id: clientId, scope: GDRIVE_SCOPE,
-    callback: resp => { if (resp.error) { status.textContent = 'Error: ' + resp.error; return; } buildPicker(resp.access_token); }
-  });
-  if (tokenClient) tokenClient.requestAccessToken();
-  else if (!document.getElementById('gis-script')) {
-    const s = document.createElement('script');
-    s.id = 'gis-script'; s.src = 'https://accounts.google.com/gsi/client'; s.onload = launchPicker;
-    document.head.appendChild(s);
+function prevReview() {
+  if (reviewIdx > 0) {
+    reviewIdx--;
+    showReviewItem();
   }
 }
 
-function buildPicker(accessToken) {
-  const status = document.getElementById('driveStatus');
-  status.textContent = '';
-  const picker = new google.picker.PickerBuilder()
-    .addView(new google.picker.DocsView().setIncludeFolders(false).setMimeTypes('image/jpeg,image/png,image/heic,image/webp'))
-    .setOAuthToken(accessToken)
-    .setTitle('Selecciona fotos de tickets')
-    .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
-    .setCallback(async data => {
-      if (data.action !== google.picker.Action.PICKED) return;
-      const docs = data.docs || [];
-      status.textContent = `⬇ Descargando ${docs.length} archivo(s)...`;
-      const downloaded = [];
-      for (const doc of docs) {
-        try {
-          const r = await fetch(`https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media`, {
-            headers: { Authorization: `Bearer ${accessToken}` }
-          });
-          downloaded.push(new File([await r.blob()], doc.name, { type: doc.mimeType }));
-        } catch(e) { status.textContent = `Error: ${doc.name}`; }
-      }
-      if (downloaded.length) {
-        status.textContent = `✓ ${downloaded.length} archivo(s) de Drive listos`;
-        status.style.color = 'var(--success)';
-        handleFiles(downloaded);
-      }
-    }).build();
-  picker.setVisible(true);
-}
+// Rotation state used by review modal
+const thumbRotation = {};
 
-function showGdriveClientIdField() {
-  if (document.querySelector('.gdrive-clientid')) return;
-  const cfg = document.getElementById('btnDrive').parentElement;
-  const div = document.createElement('div');
-  div.className = 'gdrive-clientid field-group'; div.style.marginTop = '8px';
-  div.innerHTML = `<label>GOOGLE CLIENT ID</label>
-    <input type="text" id="cfgGdriveClientId" placeholder="xxxx.apps.googleusercontent.com"
-      style="font-size:11px" oninput="localStorage.setItem('g3_gcid',this.value)">`;
-  cfg.appendChild(div);
-  const saved = localStorage.getItem('g3_gcid');
-  if (saved) document.getElementById('cfgGdriveClientId').value = saved;
-}
-
-// ── Export Excel ──
-function exportExcel() {
-  const wb   = XLSX.utils.book_new();
-  const tiro = document.getElementById('cfgTiro').value;
-  const weekLabel = detectWeekLabel();
-  const year = new Date().getFullYear();
-
-  const sorted = [...rows].sort((a, b) => {
-    if (a.numero_economico !== b.numero_economico) return (a.numero_economico || '').localeCompare(b.numero_economico || '');
-    const da = parseDate(a.fecha), db = parseDate(b.fecha);
-    if (da && db && da - db !== 0) return da - db;
-    return (a.folio || '').localeCompare(b.folio || '');
-  });
-
-  const sheetData = [
-    [],
-    [`CONCILIACIÓN DE VIAJES ${tiro.toUpperCase()} SEMANA DEL ${weekLabel.toUpperCase()} DEL ${year}`],
-    [],
-    ['', 'No.', 'Fecha', 'Folio', 'Número Económico', 'Placas', 'Capacidad M3', 'Servicio', 'Tiro'],
-    ...sorted.map((row, i) => ['', i + 1, row.fecha, row.folio || '', row.numero_economico, row.placas, row.capacidad, row.servicio, row.tiro]),
-  ];
-
-  const ws = XLSX.utils.aoa_to_sheet(sheetData);
-  const yellowFill = { patternType: 'solid', fgColor: { rgb: 'FFFF00' } };
-  sorted.forEach((row, i) => {
-    if (!row.confident) {
-      ['B','C','D','E','F','G','H','I'].forEach(col => {
-        const ref = col + (i + 5);
-        if (!ws[ref]) ws[ref] = { v: '', t: 's' };
-        ws[ref].s = { fill: yellowFill };
-      });
-    }
-  });
-  ws['!cols'] = [{ wch:2 },{ wch:5 },{ wch:12 },{ wch:8 },{ wch:16 },{ wch:12 },{ wch:12 },{ wch:10 },{ wch:25 }];
-  ws['!ref']  = `A1:I${sorted.length + 4}`;
-
-  const sheetName = weekLabel.replace(/[\\/*?:[\]]/g, '-').substring(0, 31) || 'Semana';
-  XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  XLSX.writeFile(wb, `Conciliacion_${weekLabel.replace(/\s/g,'_').replace(/–/g,'-')}_${year}.xlsx`, { cellStyles: true });
-}
-
-// ── Export PDF ──
-function exportPDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-
-  const tiro   = document.getElementById('cfgTiro').value;
-  const precio = parseFloat(document.getElementById('cfgPrecio').value) || 900;
-  const weekLabel = detectWeekLabel();
-  const year   = new Date().getFullYear();
-  const pageW  = 215.9, pageH = 279.4, margin = 14;
-
-  const sorted = [...rows].sort((a, b) => {
-    if (a.numero_economico !== b.numero_economico) return (a.numero_economico || 'ZZ').localeCompare(b.numero_economico || 'ZZ');
-    const da = parseDate(a.fecha), db = parseDate(b.fecha);
-    if (da && db) return da - db;
-    return (a.folio || '').localeCompare(b.folio || '');
-  });
-
-  let y = margin;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-  doc.text('Persona Física: Gerardo García Gutiérrez', pageW / 2, y, { align: 'center' }); y += 5;
-  doc.text('Régimen Simplificado de Confianza (RESICO)',  pageW / 2, y, { align: 'center' }); y += 6;
-  doc.setFontSize(9.5);
-  doc.text(`CONCILIACIÓN DE VIAJES ${tiro.toUpperCase()}\nSEMANA DEL ${weekLabel.toUpperCase()} DEL ${year}`, pageW / 2, y, { align: 'center' });
-  y += 12;
-
-  doc.autoTable({
-    startY: y,
-    margin: { left: margin, right: margin },
-    head: [['No.', 'Fecha', 'Folio', 'Núm. Eco.', 'Placas', 'Cap. M3', 'Servicio', 'Tiro']],
-    body: sorted.map((row, i) => [i+1, row.fecha, row.folio, row.numero_economico, row.placas, row.capacidad, row.servicio, row.tiro]),
-    styles: { font: 'helvetica', fontSize: 7, cellPadding: 1.2, lineColor: [180,180,180], lineWidth: 0.2 },
-    headStyles: { fillColor: [46,117,182], textColor: 255, fontStyle: 'bold', fontSize: 7, halign: 'center' },
-    columnStyles: {
-      0: { halign:'center', cellWidth:9  },
-      1: { halign:'center', cellWidth:20 },
-      2: { halign:'center', cellWidth:16 },
-      3: { halign:'center', cellWidth:20 },
-      4: { halign:'center', cellWidth:22 },
-      5: { halign:'center', cellWidth:16 },
-      6: { halign:'center', cellWidth:18 },
-      7: { halign:'left',   cellWidth:'auto' },
-    },
-    alternateRowStyles: { fillColor: [245,249,255] },
-    didParseCell: data => {
-      if (data.section === 'body' && sorted[data.row.index] && !sorted[data.row.index].confident) {
-        data.cell.styles.fillColor = [255, 255, 180];
-      }
-    },
-    didDrawPage: () => {
-      const pg = doc.internal.getCurrentPageInfo().pageNumber;
-      const tot = doc.internal.getNumberOfPages();
-      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(150);
-      doc.text(`Página ${pg} / ${tot}`, pageW - margin, pageH - 8, { align: 'right' });
-      doc.setTextColor(0);
-    },
-  });
-
-  // Totals
-  const subtotal = sorted.length * precio;
-  const iva      = subtotal *  0.16;
-  const ivaRet   = subtotal * -0.04;
-  const isrRet   = subtotal * -0.0125;
-  const total    = subtotal + iva + ivaRet + isrRet;
-  const fmt = n => {
-    const abs = Math.abs(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return n < 0 ? `($  ${abs})` : `$  ${abs}`;
-  };
-
-  const TOTALS_HEIGHT = 59;
-  const summaryY = (pageH - margin - doc.lastAutoTable.finalY < TOTALS_HEIGHT)
-    ? (doc.addPage(), margin)
-    : doc.lastAutoTable.finalY + 7;
-
-  doc.autoTable({
-    startY: summaryY, margin: { left: margin, right: margin }, tableWidth: 100,
-    body: [
-      [{ content: `TOTAL DE VIAJES DEL ${tiro.toUpperCase()}`, styles: { fontStyle: 'bold' } }, { content: String(sorted.length), styles: { halign: 'right', fontStyle: 'bold' } }],
-      [{ content: 'PRECIO POR VIAJE', styles: { fontStyle: 'bold' } }, { content: fmt(precio), styles: { halign: 'right' } }],
-      ['', ''],
-      [{ content: 'SUBTOTAL',     styles: { halign: 'right' } }, { content: fmt(subtotal), styles: { halign: 'right' } }],
-      [{ content: 'IVA',          styles: { halign: 'right' } }, { content: fmt(iva),      styles: { halign: 'right' } }],
-      [{ content: 'IVA RETENIDO', styles: { halign: 'right' } }, { content: fmt(ivaRet),   styles: { halign: 'right' } }],
-      [{ content: 'ISR RETENIDO', styles: { halign: 'right' } }, { content: fmt(isrRet),   styles: { halign: 'right' } }],
-      [{ content: 'TOTAL', styles: { halign: 'right', fontStyle: 'bold' } }, { content: fmt(total), styles: { halign: 'right', fontStyle: 'bold' } }],
-    ],
-    styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.5, lineColor: [200,200,200], lineWidth: 0.2 },
-    columnStyles: { 0: { cellWidth: 65 }, 1: { cellWidth: 35, halign: 'right' } },
-    theme: 'plain',
-  });
-
-  doc.save(`Conciliacion_${weekLabel.replace(/\s/g,'_').replace(/–/g,'-')}_${year}.pdf`);
-}
-
-// ── Clear all ──
-function clearAll() {
-  uploadedFiles.forEach(e => { if (e.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(e.previewUrl); });
-  uploadedFiles = []; rows = []; rowCounter = 0; fileCounter = 0;
-  document.getElementById('fileList').innerHTML = '';
-  document.querySelector('.upload-text').innerHTML =
-    '<strong>Arrastra aquí</strong> o haz clic<br>Fotos · o arrastra una <strong>carpeta entera</strong>';
-  document.getElementById('mainPanel').innerHTML = `
-    <div class="empty-state" id="emptyState">
-      <div class="empty-icon">🧾</div>
-      <div class="empty-text">Sube fotos de tickets<br>— incluso fotos con varios tickets —<br>
-      luego presiona <strong style="color:var(--accent)">PROCESAR TICKETS</strong></div>
-    </div>`;
-  document.getElementById('bottomBar').style.display = 'none';
-  document.getElementById('warnNote').style.display  = 'none';
-  document.getElementById('btnProcess').innerHTML = '<span>⚡</span> PROCESAR TICKETS';
-  document.getElementById('btnProcess').classList.remove('running');
-  document.getElementById('btnProcess').disabled = true;
-  document.getElementById('btnPdf').disabled     = true;
-  document.getElementById('headerMeta').textContent = 'Listo para procesar';
-}
-
-// ── Event listeners (single DOMContentLoaded block) ──
 document.addEventListener('DOMContentLoaded', () => {
-  // Lightbox
+  // ── Lightbox controls ──
   document.getElementById('lbClose').addEventListener('click', closeLightbox);
   document.getElementById('lbOverlay').addEventListener('click', e => {
     if (e.target === document.getElementById('lbOverlay') ||
@@ -1512,48 +1344,311 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('lbZoomIn').addEventListener('click',    () => { lbZoom = Math.min(lbZoom + 0.25, 5); applyLbTransform(); });
   document.getElementById('lbZoomOut').addEventListener('click',   () => { lbZoom = Math.max(lbZoom - 0.25, 0.25); applyLbTransform(); });
   document.getElementById('lbZoomReset').addEventListener('click', () => { lbZoom = 1; applyLbTransform(); });
-  document.getElementById('lbRotL').addEventListener('click', () => { lbRot = (lbRot - 90 + 360) % 360; applyLbTransform(); });
-  document.getElementById('lbRotR').addEventListener('click', () => { lbRot = (lbRot + 90)       % 360; applyLbTransform(); });
+  document.getElementById('lbRotL').addEventListener('click',      () => { lbRot = (lbRot - 90 + 360) % 360; applyLbTransform(); });
+  document.getElementById('lbRotR').addEventListener('click',      () => { lbRot = (lbRot + 90) % 360; applyLbTransform(); });
+  // Scroll to zoom
   document.getElementById('lbImgWrap').addEventListener('wheel', e => {
     e.preventDefault();
     lbZoom = Math.min(5, Math.max(0.25, lbZoom - e.deltaY * 0.001));
     applyLbTransform();
   }, { passive: false });
+  // Escape key closes
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      closeLightbox();
+      document.getElementById('reviewModal').classList.add('hidden');
+    }
+  });
 
-  // Review modal
+  // ── Review modal controls ──
   document.getElementById('btnApprove').addEventListener('click', applyReview);
   document.getElementById('btnSkip').addEventListener('click', skipReview);
   document.getElementById('btnPrev').addEventListener('click', prevReview);
-  document.getElementById('btnCloseReview').addEventListener('click', closeReview);
-
-  // Click preview image → open full-image lightbox
-  document.getElementById('reviewImg').addEventListener('click', function() {
-    openLightbox(this.dataset.fullUrl || this.src);
-  });
-
-  // Rotation in review
   document.getElementById('rvRotL').addEventListener('click', () => {
     reviewRotDeg = (reviewRotDeg - 90 + 360) % 360;
     const img = document.getElementById('reviewImg');
     img.style.transform = reviewRotDeg ? `rotate(${reviewRotDeg}deg)` : '';
-    img.style.maxHeight = (reviewRotDeg === 90 || reviewRotDeg === 270) ? '180px' : '240px';
+    img.style.maxHeight = (reviewRotDeg === 90 || reviewRotDeg === 270) ? '220px' : '260px';
   });
   document.getElementById('rvRotR').addEventListener('click', () => {
     reviewRotDeg = (reviewRotDeg + 90) % 360;
     const img = document.getElementById('reviewImg');
     img.style.transform = reviewRotDeg ? `rotate(${reviewRotDeg}deg)` : '';
-    img.style.maxHeight = (reviewRotDeg === 90 || reviewRotDeg === 270) ? '180px' : '240px';
+    img.style.maxHeight = (reviewRotDeg === 90 || reviewRotDeg === 270) ? '220px' : '260px';
   });
 
-  // Date range persistence
-  document.getElementById('cfgFechaInicio').addEventListener('change', e => localStorage.setItem('g3_fecha_inicio', e.target.value));
-  document.getElementById('cfgFechaFin').addEventListener('change',    e => localStorage.setItem('g3_fecha_fin',    e.target.value));
-
-  // Escape closes any overlay
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeLightbox(); closeReview(); }
-  });
+  // ── Date range persistence ──
+  document.getElementById('cfgFechaInicio')?.addEventListener('change', e => localStorage.setItem('g3_fecha_inicio', e.target.value));
+  document.getElementById('cfgFechaFin')?.addEventListener('change', e => localStorage.setItem('g3_fecha_fin', e.target.value));
 });
+
+// ── WEEK LABEL ──
+function detectWeekLabel() {
+  const dates = rows.map(r=>parseDate(r.fecha)).filter(Boolean).sort((a,b)=>a-b);
+  if (!dates.length) return '—';
+  const fmt = d=>`${d.getDate()} ${['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][d.getMonth()]}`;
+  return `${fmt(dates[0])} – ${fmt(dates[dates.length-1])}`;
+}
+
+function parseDate(s) {
+  if (!s) return null;
+  const parts = s.split(/[\/\-]/);
+  if (parts.length < 3) return null;
+  const [d,m,y] = parts.map(Number);
+  if (!d||!m||!y) return null;
+  return new Date(y < 100 ? 2000+y : y, m-1, d);
+}
+
+async function exportExcel() {
+  const wb = XLSX.utils.book_new();
+
+  // Sort: ECO first (G-01 before G-02), then date, then folio — same as preview
+  const sorted = [...rows].sort((a, b) => {
+    const ecoA = a.numero_economico || '';
+    const ecoB = b.numero_economico || '';
+    if (ecoA !== ecoB) return ecoA.localeCompare(ecoB);
+    const da = parseDate(a.fecha), db = parseDate(b.fecha);
+    if (da && db && da - db !== 0) return da - db;
+    return (a.folio || '').localeCompare(b.folio || '');
+  });
+
+  const tiro = document.getElementById('cfgTiro').value;
+  const weekLabel = detectWeekLabel();
+  const year = new Date().getFullYear();
+
+  const sheetData = [
+    [],
+    [`CONCILIACIÓN DE VIAJES ${tiro.toUpperCase()} SEMANA DEL ${weekLabel.toUpperCase()} DEL ${year}`],
+    [],
+    ['', 'No.', 'Fecha', 'Folio', 'Número Económico', 'Placas', 'Capacidad M3', 'Servicio', 'Tiro']
+  ];
+
+  sorted.forEach((row, i) => {
+    sheetData.push([
+      '', i + 1,
+      row.fecha,          // keep as string DD/MM/YYYY — no Date object conversion
+      row.folio || '',    // keep as string to preserve leading zeros
+      row.numero_economico,
+      row.placas,
+      row.capacidad,
+      row.servicio,
+      row.tiro
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+  // Yellow fill for low-confidence rows
+  const yellowFill = { patternType: 'solid', fgColor: { rgb: 'FFFF00' } };
+  sorted.forEach((row, i) => {
+    if (!row.confident) {
+      ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].forEach(col => {
+        const ref = col + (i + 5);
+        if (!ws[ref]) ws[ref] = { v: '', t: 's' };
+        ws[ref].s = { fill: yellowFill };
+      });
+    }
+  });
+
+  ws['!cols'] = [
+    { wch: 2 }, { wch: 5 }, { wch: 12 }, { wch: 8 }, { wch: 16 },
+    { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 25 }
+  ];
+
+  ws['!ref'] = `A1:I${sorted.length + 4}`;
+
+  const sheetName = weekLabel.replace(/[\\/*?:[\]]/g, '-').substring(0, 31) || 'Semana';
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+  const fileName = `Conciliacion_${weekLabel.replace(/\s/g, '_').replace(/–/g, '-')}_${year}.xlsx`;
+  XLSX.writeFile(wb, fileName, { cellStyles: true, bookType: 'xlsx' });
+}
+
+// ── PDF EXPORT — matches the Word template format ──
+function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+
+  const tiro      = document.getElementById('cfgTiro').value;
+  const precio    = parseFloat(document.getElementById('cfgPrecio').value) || 900;
+  const weekLabel = detectWeekLabel();
+  const year      = new Date().getFullYear();
+
+  // Sort same as Excel: ECO then date
+  const sorted = [...rows].sort((a, b) => {
+    const ecoA = a.numero_economico || 'ZZ', ecoB = b.numero_economico || 'ZZ';
+    if (ecoA !== ecoB) return ecoA.localeCompare(ecoB);
+    const da = parseDate(a.fecha), db = parseDate(b.fecha);
+    if (da && db) return da - db;
+    return (a.folio || '').localeCompare(b.folio || '');
+  });
+
+  const pageW  = 215.9; // letter portrait width mm
+  const pageH  = 279.4;
+  const margin = 14;
+  let y = margin;
+
+  // ── Header ──
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('Persona Física: Gerardo García Gutiérrez', pageW / 2, y, { align: 'center' });
+  y += 5;
+  doc.text('Régimen Simplificado de Confianza (RESICO)', pageW / 2, y, { align: 'center' });
+  y += 6;
+  doc.setFontSize(9.5);
+  const title = `CONCILIACIÓN DE VIAJES ${tiro.toUpperCase()}\nSEMANA DEL ${weekLabel.toUpperCase()} DEL ${year}`;
+  doc.text(title, pageW / 2, y, { align: 'center' });
+  y += 12;
+
+  // ── Main data table ──
+  const tableBody = sorted.map((row, i) => [
+    i + 1,
+    row.fecha,
+    row.folio,
+    row.numero_economico,
+    row.placas,
+    row.capacidad,
+    row.servicio,
+    row.tiro
+  ]);
+
+  doc.autoTable({
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [['No.', 'Fecha', 'Folio', 'Núm. Eco.', 'Placas', 'Cap. M3', 'Servicio', 'Tiro']],
+    body: tableBody,
+    styles: {
+      font: 'helvetica', fontSize: 7, cellPadding: 1.2,
+      lineColor: [180, 180, 180], lineWidth: 0.2, overflow: 'linebreak',
+    },
+    headStyles: {
+      fillColor: [46, 117, 182], textColor: 255,
+      fontStyle: 'bold', fontSize: 7, halign: 'center',
+    },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 9  },
+      1: { halign: 'center', cellWidth: 20 },
+      2: { halign: 'center', cellWidth: 16 },
+      3: { halign: 'center', cellWidth: 20 },
+      4: { halign: 'center', cellWidth: 22 },
+      5: { halign: 'center', cellWidth: 16 },
+      6: { halign: 'center', cellWidth: 18 },
+      7: { halign: 'left',   cellWidth: 'auto' },
+    },
+    alternateRowStyles: { fillColor: [245, 249, 255] },
+    didParseCell: (data) => {
+      if (data.section === 'body' && sorted[data.row.index] && !sorted[data.row.index].confident) {
+        data.cell.styles.fillColor = [255, 255, 180];
+      }
+    },
+    didDrawPage: () => {
+      const pageNum = doc.internal.getCurrentPageInfo().pageNumber;
+      const totalPg = doc.internal.getNumberOfPages();
+      doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(150);
+      doc.text(`Página ${pageNum} / ${totalPg}`, pageW - margin, pageH - 8, { align: 'right' });
+      doc.setTextColor(0);
+    }
+  });
+
+  // ── Totals — correct formulas ──
+  const subtotal = sorted.length * precio;
+  const iva      =  subtotal *  0.16;
+  const ivaRet   =  subtotal * -0.04;
+  const isrRet   =  subtotal * -0.0125;
+  const total    =  subtotal + iva + ivaRet + isrRet;
+
+  const fmt = n => {
+    const abs = Math.abs(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return n < 0 ? `($  ${abs})` : `$  ${abs}`;
+  };
+
+  // 8 rows × ~6.5mm each + 7mm gap ≈ 59mm needed
+  const TOTALS_HEIGHT = 59;
+  const spaceLeft = pageH - margin - doc.lastAutoTable.finalY;
+  const summaryY = spaceLeft < TOTALS_HEIGHT
+    ? (doc.addPage(), margin)                    // not enough room — new page
+    : doc.lastAutoTable.finalY + 7;              // fits — stay on same page
+
+  doc.autoTable({
+    startY: summaryY,
+    margin: { left: margin, right: margin },
+    tableWidth: 100,
+    body: [
+      [{ content: `TOTAL DE VIAJES DEL ${tiro.toUpperCase()}`, styles: { fontStyle: 'bold' } },
+       { content: String(sorted.length), styles: { halign: 'right', fontStyle: 'bold' } }],
+      [{ content: 'PRECIO POR VIAJE', styles: { fontStyle: 'bold' } },
+       { content: fmt(precio), styles: { halign: 'right' } }],
+      ['', ''],
+      [{ content: 'SUBTOTAL',     styles: { halign: 'right' } }, { content: fmt(subtotal), styles: { halign: 'right' } }],
+      [{ content: 'IVA',          styles: { halign: 'right' } }, { content: fmt(iva),      styles: { halign: 'right' } }],
+      [{ content: 'IVA RETENIDO', styles: { halign: 'right' } }, { content: fmt(ivaRet),   styles: { halign: 'right' } }],
+      [{ content: 'ISR RETENIDO', styles: { halign: 'right' } }, { content: fmt(isrRet),   styles: { halign: 'right' } }],
+      [{ content: 'TOTAL', styles: { halign: 'right', fontStyle: 'bold' } },
+       { content: fmt(total), styles: { halign: 'right', fontStyle: 'bold' } }],
+    ],
+    styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
+    columnStyles: {
+      0: { cellWidth: 65 },
+      1: { cellWidth: 35, halign: 'right' },
+    },
+    theme: 'plain',
+  });
+
+  const pdfName = `Conciliacion_${weekLabel.replace(/\s/g, '_').replace(/–/g, '-')}_${year}.pdf`;
+  doc.save(pdfName);
+}
+
+
+
+
+// ── ZOOM VIEWER ──
+let lbZoom = 1, lbRot = 0;
+
+function openLightbox(src) {
+  lbZoom = 1; lbRot = 0;
+  const img = document.getElementById('lbImg');
+  img.src = src;
+  applyLbTransform();
+  document.getElementById('lbOverlay').classList.remove('hidden');
+}
+
+function applyLbTransform() {
+  document.getElementById('lbImg').style.transform =
+    `rotate(${lbRot}deg) scale(${lbZoom})`;
+}
+
+function closeLightbox() {
+  document.getElementById('lbOverlay').classList.add('hidden');
+  document.getElementById('lbImg').src = '';
+}
+
+// ── MANUAL SINGLE-ROW REVIEW ──
+function openRowReview(rowId) {
+  const idx = rows.findIndex(r => r.id === rowId);
+  if (idx === -1) return;
+  startReview([...rows], true, idx);
+}
+
+function clearAll() {
+  // Revoke any existing blob URLs to free memory
+  uploadedFiles.forEach(e => { if (e.previewUrl && e.previewUrl.startsWith('blob:')) URL.revokeObjectURL(e.previewUrl); });
+  uploadedFiles = []; rows = []; rowCounter = 0; fileCounter = 0; excelData = null;
+  document.getElementById('fileList').innerHTML = '';
+  document.querySelector('.upload-text').innerHTML =
+    '<strong>Arrastra aquí</strong> o haz clic<br>Fotos de tickets';
+  document.getElementById('mainPanel').innerHTML = `
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🧾</div>
+      <div class="empty-text">Sube fotos de tickets<br>— incluso fotos con varios tickets —<br>luego presiona <strong style="color:var(--accent)">PROCESAR TICKETS</strong></div>
+    </div>`;
+  document.getElementById('bottomBar').style.display = 'none';
+  document.getElementById('warnNote').style.display = 'none';
+  document.getElementById('btnProcess').innerHTML = '<span>⚡</span> PROCESAR TICKETS';
+  document.getElementById('btnProcess').classList.remove('running');
+  document.getElementById('btnProcess').disabled = true;
+  document.getElementById('btnPdf') && (document.getElementById('btnPdf').disabled = true);
+  document.getElementById('headerMeta').textContent = 'Listo para procesar';
+}
 </script>
 </body>
 </html>
