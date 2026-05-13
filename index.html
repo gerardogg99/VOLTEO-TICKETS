@@ -504,7 +504,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v104';
+const APP_VERSION = 'v105';
 const API_URL = 'https://plain-union-3bb7.gerardo-gg99.workers.dev/';
 
 // ── Fleet master table ──
@@ -603,29 +603,32 @@ async function prepareImage(file) {
   let workFile = file;
   if (isHeic) {
     let converted = false;
+
+    // 1. Try browser-native decode first (Chrome 105+, Safari) — most reliable for Mac screenshots
     try {
-      const blobOrArr = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
-      const blob = Array.isArray(blobOrArr) ? blobOrArr[0] : blobOrArr;
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width; canvas.height = bitmap.height;
+      canvas.getContext('2d').drawImage(bitmap, 0, 0);
+      bitmap.close();
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.92));
+      if (!blob) throw new Error('toBlob null');
       workFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
       converted = true;
-    } catch(e) { console.warn('heic2any failed, trying native decode:', e); }
+    } catch(e) { console.warn('Native HEIC decode failed, trying heic2any:', e); }
 
+    // 2. Fall back to heic2any library (older browsers)
     if (!converted) {
       try {
-        const bitmap = await createImageBitmap(file);
-        const canvas = document.createElement('canvas');
-        canvas.width = bitmap.width; canvas.height = bitmap.height;
-        canvas.getContext('2d').drawImage(bitmap, 0, 0);
-        bitmap.close();
-        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.92));
-        if (!blob) throw new Error('canvas toBlob returned null');
+        const blobOrArr = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+        const blob = Array.isArray(blobOrArr) ? blobOrArr[0] : blobOrArr;
         workFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
         converted = true;
-      } catch(e2) { console.warn('native HEIC decode failed:', e2); }
+      } catch(e) { console.warn('heic2any failed:', e); }
     }
 
     if (!converted) {
-      throw new Error(`HEIC/HEIF no compatible con este navegador. Abre el archivo en Safari o conviértelo a JPG primero.`);
+      throw new Error(`HEIC/HEIF no compatible con este navegador. Conviértelo a JPG primero.`);
     }
   }
   const b64 = await fileToBase64(workFile);
