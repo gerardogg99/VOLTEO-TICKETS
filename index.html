@@ -650,25 +650,53 @@ function showGdriveClientIdField() {
   const saved = localStorage.getItem('g3_gcid');
   if (saved) document.getElementById('cfgGdriveClientId').value = saved;
 }
-
-const API_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
-
 // Max base64 payload to send to the API. Keep this conservative for mobile browsers.
 const MAX_B64_BYTES = 4 * 1024 * 1024;
 
 async function prepareImage(file) {
-  // 1. Convert HEIC/HEIF to JPEG first
   const isHeic = /\.(heic|heif)$/i.test(file.name) ||
                  file.type === 'image/heic' || file.type === 'image/heif';
   let workFile = file;
+
   if (isHeic) {
     try {
       const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
-      workFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+      const jpegBlob = Array.isArray(blob) ? blob[0] : blob;
+      workFile = new File(
+        [jpegBlob],
+        file.name.replace(/\.(heic|heif)$/i, '.jpg'),
+        { type: 'image/jpeg' }
+      );
     } catch(e) {
       throw new Error(`No se pudo convertir HEIC/HEIF (${e.message || 'error desconocido'})`);
     }
   }
+
+  const b64 = await fileToBase64(workFile);
+  const mime = workFile.type || 'image/jpeg';
+  const previewUrl = URL.createObjectURL(workFile);
+
+  if (b64.length <= MAX_B64_BYTES) return { b64, mime, previewUrl };
+
+  const img = await loadImage(workFile);
+  let scale = Math.sqrt(MAX_B64_BYTES / b64.length);
+  let quality = 0.88;
+  let result = b64;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.round(img.naturalWidth  * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    result = canvas.toDataURL('image/jpeg', quality).split(',')[1];
+    if (result.length <= MAX_B64_BYTES) break;
+    scale *= 0.8;
+    quality = Math.max(0.7, quality - 0.05);
+  }
+
+  return { b64: result, mime: 'image/jpeg', previewUrl };
+}
+
 
   // 2. Convert uncommon image formats to JPEG before sending to Anthropic.
   let mime = workFile.type || 'image/jpeg';
