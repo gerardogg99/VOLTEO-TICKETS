@@ -1492,9 +1492,25 @@ function finalize(startRowId = 0) {
   const pa = document.getElementById('progressArea');
   if (pa) pa.style.display = 'none';
 
-  const hasBlockingErrors = processingErrorCount > 0;
-  document.getElementById('btnExport').disabled = rows.length === 0 || hasBlockingErrors;
-  document.getElementById('btnPdf').disabled = rows.length === 0 || hasBlockingErrors;
+  const hasErrors = processingErrorCount > 0;
+
+  // If no rows were produced at all, show a friendly error state
+  if (rows.length === 0) {
+    const main = document.getElementById('mainPanel');
+    main.innerHTML = `
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon" style="font-size:2.5rem;opacity:0.7">⚠</div>
+        <div class="empty-text">
+          ${processingErrorCount} error(es) al procesar — sin tickets guardados<br>
+          Verifica tu conexión y vuelve a intentarlo<br><br>
+          <strong style="color:var(--accent)">PROCESAR TICKETS</strong>
+        </div>
+      </div>`;
+  }
+
+  // Allow export when rows exist, even if some images had errors
+  document.getElementById('btnExport').disabled = rows.length === 0;
+  document.getElementById('btnPdf').disabled = rows.length === 0;
   updateStats();
 
   // Sort table: ECO (G-01 first) then date ascending
@@ -1517,9 +1533,11 @@ function finalize(startRowId = 0) {
     });
   }
 
-  document.getElementById('headerMeta').textContent = hasBlockingErrors
-    ? `${processingErrorCount} error(es) de API/JSON — vuelve a procesar antes de exportar`
-    : `${rows.length} tickets listos — revisa y descarga`;
+  document.getElementById('headerMeta').textContent = rows.length === 0
+    ? `${processingErrorCount} error(es) — sin resultados, verifica conexión`
+    : hasErrors
+      ? `${rows.length} tickets listos · ${processingErrorCount} imagen(es) fallaron`
+      : `${rows.length} tickets listos — revisa y descarga`;
 
   // Only open the review modal for the NEW tickets added in this batch
   const newRows = rows.filter(r => r.id >= startRowId);
