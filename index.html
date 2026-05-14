@@ -460,7 +460,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.0';
+const APP_VERSION = 'V 1.1';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
@@ -694,49 +694,6 @@ async function prepareImage(file) {
     quality = Math.max(0.7, quality - 0.05);
   }
 
-  return { b64: result, mime: 'image/jpeg', previewUrl };
-}
-
-
-  // 2. Convert uncommon image formats to JPEG before sending to Anthropic.
-  let mime = workFile.type || 'image/jpeg';
-  if (!API_IMAGE_TYPES.has(mime)) {
-    const img = await loadImage(workFile);
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    canvas.getContext('2d').drawImage(img, 0, 0);
-    const converted = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-    if (!converted) throw new Error('No se pudo convertir la imagen a JPEG');
-    workFile = new File([converted], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
-    mime = 'image/jpeg';
-  }
-
-  // 3. Read to base64
-  const b64 = await fileToBase64(workFile);
-
-  // 4. Build preview URL from workFile (JPEG blob for HEIC, original otherwise)
-  const previewUrl = URL.createObjectURL(workFile);
-
-  // 5. If under limit, done
-  if (b64.length <= MAX_B64_BYTES) return { b64, mime, previewUrl };
-
-  // 6. Too large — resize via canvas until it fits
-  const img = await loadImage(workFile);
-  let scale = Math.sqrt(MAX_B64_BYTES / b64.length);
-  let quality = 0.88;
-  let result = b64;
-
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const canvas = document.createElement('canvas');
-    canvas.width  = Math.round(img.naturalWidth  * scale);
-    canvas.height = Math.round(img.naturalHeight * scale);
-    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-    result = canvas.toDataURL('image/jpeg', quality).split(',')[1];
-    if (result.length <= MAX_B64_BYTES) break;
-    scale *= 0.8;
-    quality = Math.max(0.7, quality - 0.05);
-  }
   return { b64: result, mime: 'image/jpeg', previewUrl };
 }
 
