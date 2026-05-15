@@ -269,6 +269,20 @@
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── Trucks sidebar ── */
+  .truck-row { display: flex; align-items: center; gap: 6px; padding: 4px 6px; background: var(--bg); border-radius: 4px; font-family: var(--mono); font-size: 11px; margin-bottom: 3px; }
+  .truck-eco { color: var(--accent); font-weight: 600; min-width: 40px; }
+  .truck-plates { flex: 1; color: var(--muted); }
+  .truck-del { color: var(--danger); cursor: pointer; background: none; border: none; padding: 0 2px; font-size: 12px; opacity: 0.5; transition: opacity 0.15s; }
+  .truck-del:hover { opacity: 1; }
+  .btn-add-truck { margin-top: 6px; width: 100%; padding: 5px 8px; background: transparent; border: 1px dashed var(--border); border-radius: 5px; color: var(--muted); font-family: var(--mono); font-size: 11px; cursor: pointer; transition: all 0.15s; }
+  .btn-add-truck:hover { border-color: var(--accent2); color: var(--accent2); }
+  .truck-add-form { display: none; margin-top: 8px; padding: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+  .truck-add-form.open { display: block; }
+  .truck-add-form .field-group { margin-bottom: 6px; }
+  .btn-save-truck { width: 100%; padding: 6px 8px; background: var(--accent2); border: none; border-radius: 5px; color: #fff; font-family: var(--mono); font-size: 11px; font-weight: 600; cursor: pointer; margin-top: 4px; }
+  .btn-save-truck:hover { background: #2563eb; }
 </style>
 </head>
 <body>
@@ -336,6 +350,25 @@
         <div class="field-group">
           <label>CAPACIDAD</label>
           <input type="text" id="cfgCapacidad" value="14 M3">
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">🚛 Camiones</div>
+      <div class="config-block">
+        <div id="trucksList"></div>
+        <button class="btn-add-truck" onclick="toggleAddTruckForm()">+ Agregar camión</button>
+        <div class="truck-add-form" id="truckAddForm">
+          <div class="field-group">
+            <label>NÚM. ECO (ej: G-03)</label>
+            <input type="text" id="newTruckEco" placeholder="G-03">
+          </div>
+          <div class="field-group">
+            <label>PLACAS (ej: AB-1234-C)</label>
+            <input type="text" id="newTruckPlacas" placeholder="AB-1234-C">
+          </div>
+          <button class="btn-save-truck" onclick="addTruck()">Guardar camión</button>
         </div>
       </div>
     </div>
@@ -410,8 +443,6 @@
         <label>ECO</label>
         <select id="rvEco">
           <option value="">— ?</option>
-          <option value="G-01">G-01 — VR-7129-C</option>
-          <option value="G-02">G-02 — VS-4578-C</option>
         </select>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between">
@@ -447,12 +478,13 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.1';
+const APP_VERSION = 'V 1.3';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
 window.addEventListener('load', () => {
   document.getElementById('versionBadge').textContent = APP_VERSION;
+  loadTrucks();
 
   const savedToken = localStorage.getItem('g3_app_token');
   if (savedToken) document.getElementById('cfgAppToken').value = savedToken;
@@ -676,11 +708,87 @@ function fileToBase64(file) {
   });
 }
 
-// ── GLOBAL CONFIG ──
-const TRUCKS = {
+// ── TRUCKS CONFIG — managed via sidebar UI, persisted in localStorage ──
+let TRUCKS = {};
+
+const TRUCKS_DEFAULTS = {
   'G-01': { placas: 'VR-7129-C', patterns: ['VR-7129', 'VR7129', 'VR712', '7129'] },
   'G-02': { placas: 'VS-4578-C', patterns: ['VS-4578', 'VS4578', 'VS457', '4578'] },
 };
+
+function loadTrucks() {
+  try {
+    const saved = localStorage.getItem('g3_trucks');
+    TRUCKS = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(TRUCKS_DEFAULTS));
+  } catch {
+    TRUCKS = JSON.parse(JSON.stringify(TRUCKS_DEFAULTS));
+  }
+  renderTrucksUI();
+}
+
+function saveTrucks() {
+  localStorage.setItem('g3_trucks', JSON.stringify(TRUCKS));
+}
+
+function generatePatterns(placas) {
+  const up = placas.toUpperCase();
+  const clean = up.replace(/[^A-Z0-9]/g, '');
+  const patterns = [up, clean];
+  const nums = up.match(/\d{4,}/g);
+  if (nums) patterns.push(...nums);
+  const dashParts = up.split('-').filter(p => /[A-Z0-9]/.test(p));
+  if (dashParts.length >= 2) patterns.push(dashParts[0] + '-' + dashParts[1]);
+  return [...new Set(patterns.filter(p => p.length >= 3))];
+}
+
+function addTruck() {
+  const eco = document.getElementById('newTruckEco').value.trim().toUpperCase();
+  const placas = document.getElementById('newTruckPlacas').value.trim().toUpperCase();
+  if (!eco || !placas) { alert('Completa ECO y Placas.'); return; }
+  if (TRUCKS[eco]) { alert(`El camión ${eco} ya existe.`); return; }
+  TRUCKS[eco] = { placas, patterns: generatePatterns(placas) };
+  saveTrucks();
+  renderTrucksUI();
+  document.getElementById('newTruckEco').value = '';
+  document.getElementById('newTruckPlacas').value = '';
+  document.getElementById('truckAddForm').classList.remove('open');
+}
+
+function removeTruck(eco) {
+  if (Object.keys(TRUCKS).length <= 1) { alert('Debe haber al menos un camión.'); return; }
+  if (!confirm(`¿Eliminar ${eco} (${TRUCKS[eco]?.placas})?`)) return;
+  delete TRUCKS[eco];
+  saveTrucks();
+  renderTrucksUI();
+}
+
+function renderTrucksUI() {
+  const list = document.getElementById('trucksList');
+  if (!list) return;
+  list.replaceChildren();
+  Object.entries(TRUCKS).forEach(([eco, cfg]) => {
+    const div = document.createElement('div');
+    div.className = 'truck-row';
+    div.innerHTML = `<span class="truck-eco">${eco}</span><span class="truck-plates">${cfg.placas}</span>`;
+    const btn = document.createElement('button');
+    btn.className = 'truck-del';
+    btn.textContent = '✕';
+    btn.title = `Eliminar ${eco}`;
+    btn.onclick = () => removeTruck(eco);
+    div.appendChild(btn);
+    list.appendChild(div);
+  });
+}
+
+function toggleAddTruckForm() {
+  document.getElementById('truckAddForm').classList.toggle('open');
+}
+
+const ECO_COLORS = ['#a78bfa', '#34d399', '#60a5fa', '#f97316', '#e879f9'];
+function getEcoColor(eco) {
+  const idx = Object.keys(TRUCKS).indexOf(eco);
+  return idx >= 0 ? ECO_COLORS[idx % ECO_COLORS.length] : 'var(--muted)';
+}
 
 // ── DATE HELPERS — moved to global scope ──
 function buildFechasList(inicio, fin) {
@@ -724,8 +832,14 @@ function normalizePlacas(raw) {
 
 function normalizeEco(raw) {
   const up = String(raw || '').toUpperCase().replace(/\s/g, '');
-  if (/^(G-?0?1|0?1)$/.test(up)) return 'G-01';
-  if (/^(G-?0?2|0?2)$/.test(up)) return 'G-02';
+  for (const eco of Object.keys(TRUCKS)) {
+    if (up === eco) return eco;
+    const ecoNorm = eco.replace(/[^A-Z0-9]/g, '');
+    const upNorm  = up.replace(/[^A-Z0-9]/g, '');
+    if (upNorm === ecoNorm) return eco;
+    const ecoNum = eco.replace(/[^0-9]/g, '');
+    if (ecoNum && upNorm === ecoNum) return eco;
+  }
   return '';
 }
 
@@ -1075,11 +1189,10 @@ function renderRow(row) {
 
   // ── ECO select cell ──
   const ecoTd = document.createElement('td');
-  const ecoColor = row.numero_economico === 'G-01' ? '#a78bfa' : row.numero_economico === 'G-02' ? '#34d399' : 'var(--muted)';
+  const ecoColor = getEcoColor(row.numero_economico);
   const ecoSel = document.createElement('select');
   ecoSel.style.cssText = `background:var(--bg);border:none;border-bottom:1px solid transparent;color:${ecoColor};font-family:var(--mono);font-size:12px;outline:none;`;
-  // Blank option for when ECO is unknown
-  ['', 'G-01', 'G-02'].forEach(val => {
+  ['', ...Object.keys(TRUCKS)].forEach(val => {
     const opt = document.createElement('option');
     opt.value = val;
     opt.textContent = val || '— ?';
@@ -1091,7 +1204,7 @@ function renderRow(row) {
     r.numero_economico = ecoSel.value;
     r.placas = TRUCKS[ecoSel.value]?.placas || '';
     placaTd.textContent = r.placas;
-    ecoSel.style.color = ecoSel.value === 'G-01' ? '#a78bfa' : ecoSel.value === 'G-02' ? '#34d399' : 'var(--muted)';
+    ecoSel.style.color = getEcoColor(ecoSel.value);
     r.confident = hasRequiredRowData(r);
     refreshRowConfidence(r);
   });
@@ -1254,7 +1367,20 @@ function showReviewItem() {
   document.getElementById('rvSource').textContent = row.sourceName;
   document.getElementById('rvFecha').value = row.fecha;
   document.getElementById('rvFolio').value = row.folio;
-  document.getElementById('rvEco').value = row.numero_economico || '';
+
+  // Populate ECO dropdown dynamically from current TRUCKS
+  const rvEco = document.getElementById('rvEco');
+  rvEco.replaceChildren();
+  const blankOpt = document.createElement('option');
+  blankOpt.value = ''; blankOpt.textContent = '— ?';
+  rvEco.appendChild(blankOpt);
+  Object.entries(TRUCKS).forEach(([eco, cfg]) => {
+    const opt = document.createElement('option');
+    opt.value = eco;
+    opt.textContent = `${eco} — ${cfg.placas}`;
+    if (eco === (row.numero_economico || '')) opt.selected = true;
+    rvEco.appendChild(opt);
+  });
 
   // Show confidence state in title
   const title = document.getElementById('reviewTitle');
@@ -1295,7 +1421,7 @@ function applyReview() {
     if (inputs[0]) inputs[0].value = r.fecha;
     if (inputs[1]) inputs[1].value = r.folio;
     const sel = tr.querySelector('select');
-    if (sel) { sel.value = eco; sel.style.color = eco === 'G-01' ? '#a78bfa' : '#34d399'; }
+    if (sel) { sel.value = eco; sel.style.color = getEcoColor(eco); }
     const placa = tr.querySelector('.placa-cell');
     if (placa) placa.textContent = r.placas;
     const conf = tr.querySelector('.conf-badge');
