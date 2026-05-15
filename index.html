@@ -466,7 +466,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.0.1';
+const APP_VERSION = 'V 1.2';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Google Drive config — user fills in their own Client ID
@@ -501,7 +501,6 @@ window.addEventListener('load', () => {
 
 let uploadedFiles = []; // {id, file, type:'image', previewUrl, pages:[base64,...], mimes:[...]}
 const uploadedFingerprints = new Set();
-const processedFileIds = new Set(); // tracks which file IDs have already been processed
 let fileCounter = 0;   // stable IDs for uploadedFiles (separate from rowCounter)
 let rows = [];
 let processing = false;
@@ -830,11 +829,6 @@ async function handleFiles(fileList) {
   if (fileInput) fileInput.value = '';
   renderFileList();
   checkReady();
-  // If new files were added to an already-processed session, update the button label
-  if (rows.length > 0 && !processing) {
-    const btn = document.getElementById('btnProcess');
-    if (!btn.disabled) btn.innerHTML = '<span>⚡</span> PROCESAR NUEVOS';
-  }
   if (skipped || failed) {
     const parts = [];
     if (skipped) parts.push(`${skipped} duplicado(s) omitido(s)`);
@@ -987,15 +981,7 @@ function isValidFecha(fecha) {
 
 // ── MAIN PROCESSING ──
 async function startProcessing() {
-  if (processing) return;
-
-  // Only process files that haven't been processed yet
-  const newFiles = uploadedFiles.filter(f => !processedFileIds.has(f.id));
-  if (newFiles.length === 0) {
-    document.getElementById('headerMeta').textContent = 'No hay nuevos archivos — sube más imágenes o usa Limpiar';
-    return;
-  }
-
+  if (processing || uploadedFiles.length === 0) return;
   const weekRange = getWeekRange();
   if (!weekRange.ok) {
     document.getElementById('headerMeta').textContent = weekRange.message;
@@ -1003,81 +989,50 @@ async function startProcessing() {
     return;
   }
 
-  const isFirstBatch = rows.length === 0;
-  processing = true; processingErrorCount = 0;
-  if (isFirstBatch) {
-    rows = []; rowCounter = 0; reviewQueue = []; reviewIdx = 0; clearThumbRotations();
-  }
-
-  // Remember where new rows will start so we only review the new ones
-  const startRowId = rowCounter;
+  processing = true; rows = []; rowCounter = 0; processingErrorCount = 0;
+  reviewQueue = []; reviewIdx = 0; clearThumbRotations();
 
   const btn = document.getElementById('btnProcess');
   btn.disabled = true; btn.classList.add('running');
   btn.innerHTML = '<span>⏳</span> PROCESANDO...';
 
+  document.getElementById('emptyState') && (document.getElementById('emptyState').style.display = 'none');
   document.getElementById('bottomBar').style.display = 'flex';
   document.getElementById('btnExport').disabled = true;
   document.getElementById('btnPdf').disabled = true;
   document.getElementById('warnNote').style.display = 'none';
 
   const main = document.getElementById('mainPanel');
-
-  if (isFirstBatch) {
-    document.getElementById('emptyState') && (document.getElementById('emptyState').style.display = 'none');
-    main.innerHTML = `
-      <div class="progress-area" id="progressArea">
-        <div class="progress-header">
-          <span class="progress-title" id="progressTitle">Preparando...</span>
-          <span class="progress-pct" id="pct">0%</span>
-        </div>
-        <div class="progress-bar-outer"><div class="progress-bar-inner" id="pbar" style="width:0%"></div></div>
-        <div class="progress-log" id="plog"></div>
+  main.innerHTML = `
+    <div class="progress-area" id="progressArea">
+      <div class="progress-header">
+        <span class="progress-title" id="progressTitle">Preparando...</span>
+        <span class="progress-pct" id="pct">0%</span>
       </div>
-      <div class="stats-bar" id="statsBar" style="display:none">
-        <div class="stat"><div class="stat-val ok" id="sOk">0</div><div class="stat-lbl">SEGUROS</div></div>
-        <div class="stat"><div class="stat-val warn" id="sWarn">0</div><div class="stat-lbl">REVISAR</div></div>
-        <div class="stat"><div class="stat-val" id="sTotal">0</div><div class="stat-lbl">VIAJES</div></div>
-        <div class="stat"><div class="stat-val" id="sG01" style="color:#a78bfa">0</div><div class="stat-lbl">G-01</div></div>
-        <div class="stat"><div class="stat-val" id="sG02" style="color:#34d399">0</div><div class="stat-lbl">G-02</div></div>
-        <div class="stat"><div class="stat-val" id="sSubtotal" style="color:var(--accent);font-size:13px">$0</div><div class="stat-lbl">SUBTOTAL</div></div>
-      </div>
-      <div class="table-wrap" id="tableWrap" style="display:none">
-        <table id="dataTable">
-          <thead><tr>
-            <th>#</th><th>FUENTE</th><th>FECHA</th><th>FOLIO</th>
-            <th>NÚM. ECO.</th><th>PLACAS</th><th>TIRO</th><th>CONF.</th>
-          </tr></thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>`;
-  } else {
-    // Keep the existing table — only reset/inject the progress area
-    let pa = document.getElementById('progressArea');
-    if (!pa) {
-      pa = document.createElement('div');
-      pa.className = 'progress-area';
-      pa.id = 'progressArea';
-      pa.innerHTML = `
-        <div class="progress-header">
-          <span class="progress-title" id="progressTitle">Preparando...</span>
-          <span class="progress-pct" id="pct">0%</span>
-        </div>
-        <div class="progress-bar-outer"><div class="progress-bar-inner" id="pbar" style="width:0%"></div></div>
-        <div class="progress-log" id="plog"></div>`;
-      main.insertBefore(pa, main.firstChild);
-    } else {
-      pa.style.display = '';
-      document.getElementById('progressTitle').textContent = 'Preparando...';
-      document.getElementById('pct').textContent = '0%';
-      document.getElementById('pbar').style.width = '0%';
-      document.getElementById('plog').replaceChildren();
-    }
-  }
+      <div class="progress-bar-outer"><div class="progress-bar-inner" id="pbar" style="width:0%"></div></div>
+      <div class="progress-log" id="plog"></div>
+    </div>
+    <div class="stats-bar" id="statsBar" style="display:none">
+      <div class="stat"><div class="stat-val ok" id="sOk">0</div><div class="stat-lbl">SEGUROS</div></div>
+      <div class="stat"><div class="stat-val warn" id="sWarn">0</div><div class="stat-lbl">REVISAR</div></div>
+      <div class="stat"><div class="stat-val" id="sTotal">0</div><div class="stat-lbl">VIAJES</div></div>
+      <div class="stat"><div class="stat-val" id="sG01" style="color:#a78bfa">0</div><div class="stat-lbl">G-01</div></div>
+      <div class="stat"><div class="stat-val" id="sG02" style="color:#34d399">0</div><div class="stat-lbl">G-02</div></div>
+      <div class="stat"><div class="stat-val" id="sSubtotal" style="color:var(--accent);font-size:13px">$0</div><div class="stat-lbl">SUBTOTAL</div></div>
+    </div>
+    <div class="table-wrap" id="tableWrap" style="display:none">
+      <table id="dataTable">
+        <thead><tr>
+          <th>#</th><th>FUENTE</th><th>FECHA</th><th>FOLIO</th>
+          <th>NÚM. ECO.</th><th>PLACAS</th><th>TIRO</th><th>CONF.</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>`;
 
-  // Build work units from NEW files only
+  // Build work units: one per image/page
   const units = [];
-  for (const entry of newFiles) {
+  for (const entry of uploadedFiles) {
     entry.pages.forEach((b64, pi) => {
       units.push({ entry, b64, mime: entry.mimes[pi] || 'image/jpeg', sourceName: entry.file.name });
     });
@@ -1091,13 +1046,7 @@ async function startProcessing() {
       `Procesando imagen ${Math.min(i+BATCH, units.length)} de ${units.length}...`);
   }
 
-  // Only mark files as processed if there were no errors.
-  // If any call failed, allow the user to retry without re-uploading.
-  if (processingErrorCount === 0) {
-    newFiles.forEach(f => processedFileIds.add(f.id));
-  }
-
-  finalize(startRowId);
+  finalize();
 }
 
 function getAppToken() {
@@ -1286,7 +1235,6 @@ Responde SOLO JSON sin texto extra:
       fecha, folio,
       numero_economico: eco, placas,
       tiro, servicio, capacidad, confident,
-      reviewed: false,
     };
     row.confident = row.confident && hasRequiredRowData(row);
     rows.push(row);
@@ -1403,13 +1351,8 @@ function renderRow(row) {
   const confTd = document.createElement('td');
   confTd.style.whiteSpace = 'nowrap';
   const confBadge = document.createElement('span');
-  if (!row.reviewed) {
-    confBadge.className = 'conf-badge conf-pending';
-    confBadge.textContent = '○ Sin revisar';
-  } else {
-    confBadge.className = row.confident ? 'conf-badge conf-high' : 'conf-badge conf-low';
-    confBadge.textContent = row.confident ? '✓ OK' : '⚠ Revisar';
-  }
+  confBadge.className = row.confident ? 'conf-badge conf-high' : 'conf-badge conf-low';
+  confBadge.textContent = row.confident ? '✓ OK' : '⚠ Revisar';
   const reviewBtn = document.createElement('button');
   reviewBtn.className = 'review-row-btn';
   reviewBtn.textContent = '✎';
@@ -1458,13 +1401,8 @@ function refreshRowConfidence(row) {
     tr.classList.toggle('low-conf', !row.confident);
     const conf = tr.querySelector('.conf-badge');
     if (conf) {
-      if (!row.reviewed) {
-        conf.className = 'conf-badge conf-pending';
-        conf.textContent = '○ Sin revisar';
-      } else {
-        conf.className = row.confident ? 'conf-badge conf-high' : 'conf-badge conf-low';
-        conf.textContent = row.confident ? '✓ OK' : '⚠ Revisar';
-      }
+      conf.className = row.confident ? 'conf-badge conf-high' : 'conf-badge conf-low';
+      conf.textContent = row.confident ? '✓ OK' : '⚠ Revisar';
     }
   }
   updateStats();
@@ -1488,36 +1426,15 @@ function updateStats() {
   document.getElementById('weekLabel').textContent = detectWeekLabel();
 }
 
-function finalize(startRowId = 0) {
+function finalize() {
   processing = false;
   const btn = document.getElementById('btnProcess');
   btn.classList.remove('running');
-  btn.innerHTML = '<span>⚡</span> PROCESAR TICKETS';
+  btn.innerHTML = '<span>✓</span> LISTO — procesar de nuevo';
   btn.disabled = false;
-
-  // Hide progress area (keep it in DOM but invisible so incremental runs can reuse it)
-  const pa = document.getElementById('progressArea');
-  if (pa) pa.style.display = 'none';
-
-  const hasErrors = processingErrorCount > 0;
-
-  // If no rows were produced at all, show a friendly error state
-  if (rows.length === 0) {
-    const main = document.getElementById('mainPanel');
-    main.innerHTML = `
-      <div class="empty-state" id="emptyState">
-        <div class="empty-icon" style="font-size:2.5rem;opacity:0.7">⚠</div>
-        <div class="empty-text">
-          ${processingErrorCount} error(es) al procesar — sin tickets guardados<br>
-          Verifica tu conexión y vuelve a intentarlo<br><br>
-          <strong style="color:var(--accent)">PROCESAR TICKETS</strong>
-        </div>
-      </div>`;
-  }
-
-  // Allow export when rows exist, even if some images had errors
-  document.getElementById('btnExport').disabled = rows.length === 0;
-  document.getElementById('btnPdf').disabled = rows.length === 0;
+  const hasBlockingErrors = processingErrorCount > 0;
+  document.getElementById('btnExport').disabled = rows.length === 0 || hasBlockingErrors;
+  document.getElementById('btnPdf').disabled = rows.length === 0 || hasBlockingErrors;
   updateStats();
 
   // Sort table: ECO (G-01 first) then date ascending
@@ -1540,15 +1457,12 @@ function finalize(startRowId = 0) {
     });
   }
 
-  document.getElementById('headerMeta').textContent = rows.length === 0
-    ? `${processingErrorCount} error(es) — sin resultados, verifica conexión`
-    : hasErrors
-      ? `${rows.length} tickets listos · ${processingErrorCount} imagen(es) fallaron`
-      : `${rows.length} tickets listos — revisa y descarga`;
+  document.getElementById('headerMeta').textContent = hasBlockingErrors
+    ? `${processingErrorCount} error(es) de API/JSON — vuelve a procesar antes de exportar`
+    : `${rows.length} tickets listos — revisa y descarga`;
 
-  // Only open the review modal for the NEW tickets added in this batch
-  const newRows = rows.filter(r => r.id >= startRowId);
-  if (newRows.length > 0 && !hasErrors) startReview(newRows);
+  // Launch review for ALL tickets so user can verify each one
+  if (rows.length > 0 && !hasBlockingErrors) startReview([...rows]);
 }
 
 // ── REVIEW MODAL ──
@@ -1609,7 +1523,6 @@ function applyReview() {
   r.numero_economico = eco;
   r.placas = TRUCKS[eco]?.placas || '';
   r.confident = hasRequiredRowData(r);
-  r.reviewed = true;
 
   // Update the table row
   const tr = document.getElementById(`row-${r.id}`);
@@ -1978,7 +1891,6 @@ function clearAll() {
   rows.forEach(r => { if (r.cropUrl) URL.revokeObjectURL(r.cropUrl); });
   uploadedFiles = []; rows = []; rowCounter = 0; fileCounter = 0; processingErrorCount = 0;
   uploadedFingerprints.clear();
-  processedFileIds.clear();
   clearThumbRotations();
   reviewQueue = []; reviewIdx = 0; reviewRotDeg = 0;
   const fileInput = document.getElementById('fileInput');
