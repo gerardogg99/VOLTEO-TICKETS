@@ -275,6 +275,14 @@
   .review-rotate { display: flex; gap: 4px; margin-left: auto; }
   .review-rotate button { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 13px; }
   .review-rotate button:hover { color: var(--accent); border-color: var(--accent); }
+  .review-close-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 4px; padding: 2px 7px; cursor: pointer; font-size: 12px;
+    font-family: var(--mono); transition: all 0.15s; line-height: 1.4;
+  }
+  .review-close-btn:hover { border-color: var(--danger); color: var(--danger); }
+  .review-dot { font-size: 7px; margin-left: 3px; vertical-align: middle; color: var(--border); }
+  .review-dot.reviewed { color: var(--success); }
 
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -435,7 +443,10 @@
   <div class="review-box">
     <div class="review-header">
       <span class="review-title" id="reviewTitle">🔍 REVISAR TICKET</span>
-      <span class="review-counter" id="reviewCounter"></span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="review-counter" id="reviewCounter"></span>
+        <button class="review-close-btn" id="btnReviewClose">✕</button>
+      </div>
     </div>
     <div class="review-img-wrap">
       <img id="reviewImg" src="" onclick="openLightbox(this.src)" style="cursor:zoom-in">
@@ -488,7 +499,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.7';
+const APP_VERSION = 'V 1.8';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
@@ -1038,8 +1049,10 @@ Si el día es visualmente ambiguo (no puedes distinguirlo con certeza), pon conf
 
 Campo ilegible → "" y confident=false.
 
+BBOX: Coordenadas normalizadas (0.0–1.0) del área que ocupa cada ticket en la imagen: {"x":izquierda,"y":arriba,"w":ancho,"h":alto}. Si hay un solo ticket usa {"x":0,"y":0,"w":1,"h":1}. Si hay múltiples, ajusta cada bbox para abarcar solo ese ticket con un pequeño margen.
+
 Responde SOLO JSON sin texto extra:
-{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","placas":"VS-4578-C","confident":true}]}`;
+{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","placas":"VS-4578-C","confident":true,"bbox":{"x":0.0,"y":0.0,"w":1.0,"h":1.0}}]}`;
 
   let raw = '';
   try {
@@ -1123,6 +1136,8 @@ Responde SOLO JSON sin texto extra:
       fecha, folio,
       numero_economico: eco, placas,
       tiro, servicio, capacidad, confident,
+      bbox: t.bbox || null,
+      reviewed: false,
     };
     row.confident = row.confident && hasRequiredRowData(row);
     rows.push(row);
@@ -1255,8 +1270,14 @@ function renderRow(row) {
 
   // ── Row number cell ──
   const numTd = document.createElement('td');
-  numTd.style.cssText = 'color:var(--muted);width:28px';
-  numTd.textContent = row._sortedIdx ?? rows.length;
+  numTd.style.cssText = 'color:var(--muted);width:36px;white-space:nowrap';
+  const numSpan = document.createElement('span');
+  numSpan.textContent = row._sortedIdx ?? rows.length;
+  const dotSpan = document.createElement('span');
+  dotSpan.className = 'review-dot' + (row.reviewed ? ' reviewed' : '');
+  dotSpan.id = `dot-${row.id}`;
+  dotSpan.textContent = '●';
+  numTd.append(numSpan, dotSpan);
 
   tr.append(numTd, srcTd, fechaTd, folioTd, ecoTd, placaTd, tiroTd, confTd);
   tbody.appendChild(tr);
@@ -1320,7 +1341,11 @@ function renumberRows() {
   if (!tbody) return;
   [...tbody.querySelectorAll('tr')].forEach((tr, i) => {
     const numTd = tr.querySelector('td:first-child');
-    if (numTd) numTd.textContent = i + 1;
+    if (numTd) {
+      const numSpan = numTd.querySelector('span:first-child');
+      if (numSpan) numSpan.textContent = i + 1;
+      else numTd.textContent = i + 1;
+    }
     const rowId = parseInt(tr.id.replace('row-', ''));
     const r = rows.find(x => x.id === rowId);
     if (r) r._sortedIdx = i + 1;
@@ -1425,6 +1450,32 @@ function finalize() {
   if (rows.length > 0) startReview([...rows]);
 }
 
+// ── BBOX CROP HELPERS ──
+function isValidBbox(bbox) {
+  return bbox &&
+    typeof bbox.x === 'number' && typeof bbox.y === 'number' &&
+    typeof bbox.w === 'number' && typeof bbox.h === 'number' &&
+    bbox.w > 0.05 && bbox.h > 0.05;
+}
+
+function cropImageToBbox(url, bbox) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const sx = Math.round(bbox.x * img.naturalWidth);
+      const sy = Math.round(bbox.y * img.naturalHeight);
+      const sw = Math.round(bbox.w * img.naturalWidth);
+      const sh = Math.round(bbox.h * img.naturalHeight);
+      const canvas = document.createElement('canvas');
+      canvas.width = sw; canvas.height = sh;
+      canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+      resolve(canvas.toDataURL('image/jpeg', 0.92));
+    };
+    img.onerror = () => resolve(url);
+    img.src = url;
+  });
+}
+
 // ── REVIEW MODAL ──
 let reviewQueue = [];
 let reviewIdx = 0;
@@ -1479,9 +1530,17 @@ function showReviewItem() {
     reviewIdx === reviewQueue.length - 1 ? '✓ Aprobar y cerrar' : '✓ Aprobar';
 
   const img = document.getElementById('reviewImg');
-  img.src = row.previewUrl || '';
-  img.style.transform = reviewRotDeg ? `rotate(${reviewRotDeg}deg)` : '';
-  img.style.maxHeight = (reviewRotDeg === 90 || reviewRotDeg === 270) ? '220px' : '260px';
+  const applyImgSrc = src => {
+    img.src = src;
+    img.style.transform = reviewRotDeg ? `rotate(${reviewRotDeg}deg)` : '';
+    img.style.maxHeight = (reviewRotDeg === 90 || reviewRotDeg === 270) ? '220px' : '260px';
+  };
+  if (row.multiTicket && isValidBbox(row.bbox)) {
+    img.src = '';
+    cropImageToBbox(row.previewUrl, row.bbox).then(applyImgSrc);
+  } else {
+    applyImgSrc(row.previewUrl || '');
+  }
 }
 
 function applyReview() {
@@ -1515,6 +1574,9 @@ function applyReview() {
     }
   }
 
+  r.reviewed = true;
+  const dot = document.getElementById(`dot-${r.id}`);
+  if (dot) dot.classList.add('reviewed');
   thumbRotation[row.id] = reviewRotDeg;
   checkDuplicateFolios();
   updateStats();
@@ -1568,6 +1630,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ── Review modal controls ──
+  document.getElementById('btnReviewClose').addEventListener('click', () => {
+    document.getElementById('reviewModal').classList.add('hidden');
+  });
   document.getElementById('btnApprove').addEventListener('click', applyReview);
   document.getElementById('btnSkip').addEventListener('click', skipReview);
   document.getElementById('btnPrev').addEventListener('click', prevReview);
