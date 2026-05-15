@@ -415,7 +415,7 @@
       <button class="btn btn-export" id="btnExport" onclick="exportExcel()" disabled>⬇ Excel</button>
       <button class="btn btn-export" id="btnPdf" onclick="exportPDF()" disabled style="background:#3b82f6;border-color:#3b82f6;">⬇ PDF</button>
       <button class="btn btn-clear" onclick="clearAll()">✕ Limpiar</button>
-      <div class="warn-note" id="warnNote" style="display:none;">⚠ Filas amarillas requieren revisión</div>
+      <div class="warn-note" id="warnNote" style="display:none;"></div>
     </div>
   </div>
 </div>
@@ -478,7 +478,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.4';
+const APP_VERSION = 'V 1.5';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
@@ -1299,7 +1299,16 @@ function updateStats() {
   document.getElementById('sG02').textContent = g02;
   const sSub = document.getElementById('sSubtotal');
   if (sSub) sSub.textContent = '$' + subtotal.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  document.getElementById('warnNote').style.display = warn > 0 ? 'flex' : 'none';
+  const warnParts = [];
+  if (warn > 0) warnParts.push(`⚠ ${warn} fila(s) amarilla(s) requieren revisión`);
+  if (processingErrorCount > 0) warnParts.push(`✗ ${processingErrorCount} imagen(es) no se procesaron`);
+  const warnNote = document.getElementById('warnNote');
+  if (warnParts.length > 0) {
+    warnNote.textContent = warnParts.join(' · ');
+    warnNote.style.display = 'flex';
+  } else {
+    warnNote.style.display = 'none';
+  }
   document.getElementById('weekLabel').textContent = detectWeekLabel();
 }
 
@@ -1309,9 +1318,8 @@ function finalize() {
   btn.classList.remove('running');
   btn.innerHTML = '<span>✓</span> LISTO — procesar de nuevo';
   btn.disabled = false;
-  const hasBlockingErrors = processingErrorCount > 0;
-  document.getElementById('btnExport').disabled = rows.length === 0 || hasBlockingErrors;
-  document.getElementById('btnPdf').disabled = rows.length === 0 || hasBlockingErrors;
+  document.getElementById('btnExport').disabled = rows.length === 0;
+  document.getElementById('btnPdf').disabled = rows.length === 0;
   updateStats();
 
   // Sort table: ECO (G-01 first) then date ascending
@@ -1329,17 +1337,20 @@ function finalize() {
   if (tbody) {
     tbody.innerHTML = '';
     rows.forEach((row, i) => {
-      row._sortedIdx = i + 1; // update display number
+      row._sortedIdx = i + 1;
       renderRow(row);
     });
   }
 
-  document.getElementById('headerMeta').textContent = hasBlockingErrors
-    ? `${processingErrorCount} error(es) de API/JSON — vuelve a procesar antes de exportar`
-    : `${rows.length} tickets listos — revisa y descarga`;
+  if (processingErrorCount > 0) {
+    document.getElementById('headerMeta').textContent =
+      `${rows.length} tickets listos — ${processingErrorCount} imagen(es) con error (exportar de todas formas o volver a procesar)`;
+  } else {
+    document.getElementById('headerMeta').textContent = `${rows.length} tickets listos — revisa y descarga`;
+  }
 
   // Launch review for ALL tickets so user can verify each one
-  if (rows.length > 0 && !hasBlockingErrors) startReview([...rows]);
+  if (rows.length > 0) startReview([...rows]);
 }
 
 // ── REVIEW MODAL ──
