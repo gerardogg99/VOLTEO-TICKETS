@@ -59,8 +59,6 @@
   .field-group { margin-bottom: 0.5rem; }
   .field-group:last-child { margin-bottom: 0; }
 
-
-
   .upload-zone {
     border: 2px dashed var(--border); border-radius: 10px;
     padding: 1rem; text-align: center; cursor: pointer;
@@ -72,7 +70,6 @@
   .upload-text { font-size: 12px; color: var(--muted); line-height: 1.6; }
   .upload-text strong { color: var(--accent); }
 
-  /* file type pills */
   .type-pills { display: flex; gap: 6px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
   .pill {
     font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 2px 8px;
@@ -80,9 +77,6 @@
   }
   .pill-img { color: #60a5fa; border-color: #1e3a5f; background: #0c1a30; }
 
-
-
-  /* file list */
   .file-list { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; }
   .file-item {
     display: flex; align-items: center; gap: 6px; padding: 4px 8px;
@@ -142,12 +136,19 @@
   tbody tr:hover td { background: var(--surface2); }
   tbody tr.low-conf td { background: var(--warn-bg) !important; border-bottom-color: #2a1f00; }
   tbody tr.low-conf:hover td { background: #2e2600 !important; }
+  tbody tr.duplicate-folio td { background: #2d0808 !important; border-bottom-color: #5a1010; }
+  tbody tr.duplicate-folio:hover td { background: #3d0e0e !important; }
 
-  /* multi-ticket badge */
   .multi-badge {
     display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px;
     border-radius: 3px; font-size: 9px; font-weight: 600;
     background: #0c1a3a; color: #60a5fa; border: 1px solid #1e3a5f;
+    margin-left: 4px; vertical-align: middle;
+  }
+  .dup-badge {
+    display: inline-flex; align-items: center; padding: 1px 5px;
+    border-radius: 3px; font-size: 9px; font-weight: 600;
+    background: #3d0000; color: #f87171; border: 1px solid #7f1d1d;
     margin-left: 4px; vertical-align: middle;
   }
   .conf-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; }
@@ -161,6 +162,11 @@
   }
   .review-row-btn:hover { border-color: var(--accent2); color: var(--accent2); }
 
+  /* reviewed dot in # column */
+  .rev-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 5px; vertical-align: middle; flex-shrink: 0; }
+  .rev-dot.reviewed { background: var(--success); }
+  .rev-dot.pending { background: var(--border); }
+
   .thumb-wrap { width: 64px; height: 44px; overflow: hidden; border-radius: 4px; border: 1px solid var(--border); flex-shrink: 0; position: relative; }
   .thumb { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
 
@@ -171,6 +177,7 @@
   }
   .cell-edit:focus { border-bottom-color: var(--accent2); }
   .low-conf .cell-edit { color: #f0b429; }
+  .duplicate-folio .cell-edit { color: #f87171; }
 
   .tiro-tag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; background: #0c1a3a; color: #60a5fa; }
 
@@ -186,7 +193,10 @@
   .btn-clear:hover { color: var(--danger); border-color: var(--danger); }
   .week-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
   .week-label strong { color: var(--accent); }
-  .warn-note { font-size: 11px; color: var(--accent); display: flex; align-items: center; gap: 4px; margin-left: auto; }
+  .warn-note { font-size: 11px; color: var(--accent); display: flex; align-items: center; gap: 4px; }
+  .error-note { font-size: 11px; color: var(--danger); display: flex; align-items: center; gap: 4px; }
+  .dup-note { font-size: 11px; color: #f87171; display: flex; align-items: center; gap: 4px; }
+  .bottom-bar-notices { display: flex; flex-direction: column; gap: 4px; margin-left: auto; }
 
   /* ── Lightbox / zoom viewer ── */
   .lb-overlay {
@@ -246,6 +256,11 @@
   }
   .review-title { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.06em; }
   .review-counter { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .review-close-btn {
+    background: transparent; border: none; color: var(--muted); font-size: 18px;
+    cursor: pointer; padding: 2px 6px; border-radius: 4px; line-height: 1; transition: color 0.15s;
+  }
+  .review-close-btn:hover { color: var(--danger); }
   .review-img-wrap { background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 1rem; min-height: 200px; }
   .review-img-wrap img { max-width: 100%; max-height: 260px; object-fit: contain; border-radius: 6px; cursor: zoom-in; }
   .review-fields { padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; }
@@ -266,9 +281,42 @@
   .review-rotate button { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 13px; }
   .review-rotate button:hover { color: var(--accent); border-color: var(--accent); }
 
+  /* ── Trucks sidebar ── */
+  .truck-row { display: flex; align-items: center; gap: 6px; padding: 4px 6px; background: var(--bg); border-radius: 4px; font-family: var(--mono); font-size: 11px; margin-bottom: 3px; }
+  .truck-eco { color: var(--accent); font-weight: 600; min-width: 38px; }
+  .truck-plates { flex: 1; color: var(--muted); }
+  .truck-del { color: var(--danger); cursor: pointer; font-size: 12px; background: none; border: none; padding: 0 2px; opacity: 0.5; transition: opacity 0.15s; }
+  .truck-del:hover { opacity: 1; }
+  .btn-add-truck {
+    margin-top: 6px; width: 100%; padding: 5px 8px;
+    background: transparent; border: 1px dashed var(--border); border-radius: 5px;
+    color: var(--muted); font-family: var(--mono); font-size: 11px; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-add-truck:hover { border-color: var(--accent2); color: var(--accent2); }
+  .truck-add-form { display: none; margin-top: 8px; padding: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+  .truck-add-form.open { display: block; }
+  .truck-add-form .field-group { margin-bottom: 6px; }
+  .truck-add-form input { font-size: 11px; padding: 5px 8px; }
+  .btn-save-truck { width: 100%; padding: 6px 8px; background: var(--accent2); border: none; border-radius: 5px; color: #fff; font-family: var(--mono); font-size: 11px; font-weight: 600; cursor: pointer; margin-top: 4px; }
+  .btn-save-truck:hover { background: #2563eb; }
+
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── Mobile responsive ── */
+  @media (max-width: 720px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .sidebar {
+      border-right: none; border-bottom: 1px solid var(--border);
+      max-height: 45vh; overflow-y: auto;
+    }
+    header { padding: 0 1rem; }
+    .logo { font-size: 11px; }
+    .main { padding: 1rem; }
+    .bottom-bar { padding: 0.75rem 1rem; gap: 0.5rem; }
+    .btn { padding: 7px 12px; font-size: 11px; }
+  }
 </style>
 </head>
 <body>
@@ -284,7 +332,6 @@
 <div class="app">
   <aside class="sidebar">
 
-    <!-- Token de acceso — guardado en localStorage, nunca en el código -->
     <div>
       <div class="section-label">🔑 Acceso</div>
       <div class="config-block">
@@ -341,15 +388,21 @@
     </div>
 
     <div>
-      <div class="section-label">☁️ Google Drive</div>
-      <div class="config-block" style="padding:0.75rem">
-        
-        <button onclick="openDrivePicker()" id="btnDrive"
-          style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:border-color 0.2s"
-          onmouseover="this.style.borderColor='#4285f4'" onmouseout="this.style.borderColor='var(--border)'">
-          <span style="font-size:16px">📂</span> Abrir Google Drive
-        </button>
-        <div id="driveStatus" style="font-size:10px;color:var(--muted);margin-top:6px;text-align:center"></div>
+      <div class="section-label">🚛 Camiones</div>
+      <div class="config-block">
+        <div id="trucksList"></div>
+        <button class="btn-add-truck" id="btnShowAddTruck" onclick="toggleAddTruckForm()">+ Agregar camión</button>
+        <div class="truck-add-form" id="truckAddForm">
+          <div class="field-group">
+            <label>NÚM. ECO (ej: G-03)</label>
+            <input type="text" id="newTruckEco" placeholder="G-03">
+          </div>
+          <div class="field-group">
+            <label>PLACAS (ej: AB-1234-C)</label>
+            <input type="text" id="newTruckPlacas" placeholder="AB-1234-C">
+          </div>
+          <button class="btn-save-truck" onclick="addTruck()">Guardar camión</button>
+        </div>
       </div>
     </div>
 
@@ -366,7 +419,6 @@
           <span class="pill pill-img">JPG</span>
           <span class="pill pill-img">PNG</span>
           <span class="pill pill-img">HEIC</span>
-          
           <span class="pill" style="color:#a78bfa;border-color:#3b2a5f;background:#1a0f30">📁 FOLDER</span>
         </div>
       </div>
@@ -395,7 +447,11 @@
       <button class="btn btn-export" id="btnExport" onclick="exportExcel()" disabled>⬇ Excel</button>
       <button class="btn btn-export" id="btnPdf" onclick="exportPDF()" disabled style="background:#3b82f6;border-color:#3b82f6;">⬇ PDF</button>
       <button class="btn btn-clear" onclick="clearAll()">✕ Limpiar</button>
-      <div class="warn-note" id="warnNote" style="display:none;">⚠ Filas amarillas requieren revisión</div>
+      <div class="bottom-bar-notices">
+        <div class="warn-note" id="warnNote" style="display:none;">⚠ Filas amarillas requieren revisión</div>
+        <div class="dup-note" id="dupNote" style="display:none;">⛔ Folios duplicados — resuelve antes de exportar</div>
+        <div class="error-note" id="errorNote" style="display:none;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -405,7 +461,10 @@
   <div class="review-box">
     <div class="review-header">
       <span class="review-title" id="reviewTitle">🔍 REVISAR TICKET</span>
-      <span class="review-counter" id="reviewCounter"></span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="review-counter" id="reviewCounter"></span>
+        <button class="review-close-btn" id="btnCloseReview" title="Cerrar revisión">✕</button>
+      </div>
     </div>
     <div class="review-img-wrap">
       <img id="reviewImg" src="" onclick="openLightbox(this.src)" style="cursor:zoom-in">
@@ -421,11 +480,7 @@
       </div>
       <div class="review-field">
         <label>ECO</label>
-        <select id="rvEco">
-          <option value="">— ?</option>
-          <option value="G-01">G-01 — VR-7129-C</option>
-          <option value="G-02">G-02 — VS-4578-C</option>
-        </select>
+        <select id="rvEco"></select>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between">
         <span style="font-family:var(--mono);font-size:10px;color:var(--muted)" id="rvSource"></span>
@@ -460,42 +515,121 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.1';
+const APP_VERSION = 'V 1.0.0';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
-// Google Drive config — user fills in their own Client ID
-const GDRIVE_CLIENT_ID = ''; // Set your Google OAuth client ID here if using Drive
-const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
-let gapiReady = false;
+// ── TRUCKS CONFIG — managed via sidebar UI, persisted in localStorage ──
+let TRUCKS = {};
+
+const TRUCKS_DEFAULTS = {
+  'G-01': { placas: 'VR-7129-C', patterns: ['VR-7129', 'VR7129', 'VR712', '7129'] },
+  'G-02': { placas: 'VS-4578-C', patterns: ['VS-4578', 'VS4578', 'VS457', '4578'] },
+};
+
+function loadTrucks() {
+  try {
+    const saved = localStorage.getItem('g3_trucks');
+    TRUCKS = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(TRUCKS_DEFAULTS));
+  } catch {
+    TRUCKS = JSON.parse(JSON.stringify(TRUCKS_DEFAULTS));
+  }
+  renderTrucksUI();
+}
+
+function saveTrucks() {
+  localStorage.setItem('g3_trucks', JSON.stringify(TRUCKS));
+}
+
+function generatePatterns(placas) {
+  const up = placas.toUpperCase();
+  const clean = up.replace(/[^A-Z0-9]/g, '');
+  const patterns = [up, clean];
+  const nums = up.match(/\d{4,}/g);
+  if (nums) patterns.push(...nums);
+  const dashParts = up.split('-').filter(p => /[A-Z0-9]/.test(p));
+  if (dashParts.length >= 2) patterns.push(dashParts[0] + '-' + dashParts[1]);
+  return [...new Set(patterns.filter(p => p.length >= 3))];
+}
+
+function addTruck() {
+  const eco = document.getElementById('newTruckEco').value.trim().toUpperCase();
+  const placas = document.getElementById('newTruckPlacas').value.trim().toUpperCase();
+  if (!eco || !placas) { alert('Completa ECO y Placas.'); return; }
+  if (TRUCKS[eco]) { alert(`El camión ${eco} ya existe.`); return; }
+  TRUCKS[eco] = { placas, patterns: generatePatterns(placas) };
+  saveTrucks();
+  renderTrucksUI();
+  document.getElementById('newTruckEco').value = '';
+  document.getElementById('newTruckPlacas').value = '';
+  document.getElementById('truckAddForm').classList.remove('open');
+}
+
+function removeTruck(eco) {
+  if (Object.keys(TRUCKS).length <= 1) { alert('Debe haber al menos un camión.'); return; }
+  if (!confirm(`¿Eliminar ${eco} (${TRUCKS[eco]?.placas})?`)) return;
+  delete TRUCKS[eco];
+  saveTrucks();
+  renderTrucksUI();
+}
+
+function renderTrucksUI() {
+  const list = document.getElementById('trucksList');
+  if (!list) return;
+  list.replaceChildren();
+  Object.entries(TRUCKS).forEach(([eco, cfg]) => {
+    const div = document.createElement('div');
+    div.className = 'truck-row';
+    const ecoSpan = document.createElement('span');
+    ecoSpan.className = 'truck-eco';
+    ecoSpan.textContent = eco;
+    const platesSpan = document.createElement('span');
+    platesSpan.className = 'truck-plates';
+    platesSpan.textContent = cfg.placas;
+    const delBtn = document.createElement('button');
+    delBtn.className = 'truck-del';
+    delBtn.textContent = '✕';
+    delBtn.title = `Eliminar ${eco}`;
+    delBtn.onclick = () => removeTruck(eco);
+    div.append(ecoSpan, platesSpan, delBtn);
+    list.appendChild(div);
+  });
+}
+
+function toggleAddTruckForm() {
+  document.getElementById('truckAddForm').classList.toggle('open');
+}
+
+function populateEcoSelect(selectEl, currentValue) {
+  selectEl.replaceChildren();
+  const blank = document.createElement('option');
+  blank.value = ''; blank.textContent = '— ?';
+  selectEl.appendChild(blank);
+  Object.entries(TRUCKS).forEach(([eco, cfg]) => {
+    const opt = document.createElement('option');
+    opt.value = eco;
+    opt.textContent = `${eco} — ${cfg.placas}`;
+    if (eco === currentValue) opt.selected = true;
+    selectEl.appendChild(opt);
+  });
+}
 
 // Restore saved settings on load
 window.addEventListener('load', () => {
   document.getElementById('versionBadge').textContent = APP_VERSION;
+  loadTrucks();
 
   const savedToken = localStorage.getItem('g3_app_token');
   if (savedToken) document.getElementById('cfgAppToken').value = savedToken;
 
-  const gcid = localStorage.getItem('g3_gcid');
-  if (gcid) {
-    showGdriveClientIdField();
-    setTimeout(() => {
-      const el = document.getElementById('cfgGdriveClientId');
-      if (el) el.value = gcid;
-    }, 100);
-  }
-  // Restore date range
   const fi = localStorage.getItem('g3_fecha_inicio');
   const ff = localStorage.getItem('g3_fecha_fin');
   if (fi) document.getElementById('cfgFechaInicio').value = fi;
   if (ff) document.getElementById('cfgFechaFin').value = ff;
 });
 
-
-
-
-let uploadedFiles = []; // {id, file, type:'image', previewUrl, pages:[base64,...], mimes:[...]}
+let uploadedFiles = [];
 const uploadedFingerprints = new Set();
-let fileCounter = 0;   // stable IDs for uploadedFiles (separate from rowCounter)
+let fileCounter = 0;
 let rows = [];
 let processing = false;
 let rowCounter = 0;
@@ -508,7 +642,6 @@ dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
 dropZone.addEventListener('drop', async e => {
   e.preventDefault(); dropZone.classList.remove('drag');
   const items = [...(e.dataTransfer.items || [])];
-  // Support folder drops via FileSystemEntry API
   const allFiles = [];
   await Promise.all(items.map(item => {
     if (item.webkitGetAsEntry) {
@@ -524,7 +657,6 @@ dropZone.addEventListener('drop', async e => {
   else handleFiles(e.dataTransfer.files);
 });
 
-// Recursively collect files from folder entries
 function collectEntries(entry, collector) {
   return new Promise(resolve => {
     if (entry.isFile) {
@@ -545,112 +677,6 @@ function collectEntries(entry, collector) {
   });
 }
 
-// ── GOOGLE DRIVE PICKER ──
-function openDrivePicker() {
-  const status = document.getElementById('driveStatus');
-  // Load Google APIs dynamically
-  if (!document.getElementById('gapi-script')) {
-    status.textContent = 'Cargando Google API...';
-    status.style.color = 'var(--accent2)';
-    const s = document.createElement('script');
-    s.id = 'gapi-script';
-    s.src = 'https://apis.google.com/js/api.js';
-    s.onload = () => {
-      gapi.load('picker', () => { gapiReady = true; launchPicker(); });
-    };
-    document.head.appendChild(s);
-  } else if (gapiReady) {
-    launchPicker();
-  }
-}
-
-function launchPicker() {
-  const status = document.getElementById('driveStatus');
-  // Use implicit OAuth flow — no server needed
-  const clientId = document.getElementById('cfgGdriveClientId')?.value?.trim() || GDRIVE_CLIENT_ID;
-  if (!clientId) {
-    status.innerHTML = `<span style="color:var(--accent)">⚠ Necesitas configurar un Google Client ID.<br>
-      <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent2)">Obtenerlo aquí →</a></span>`;
-    showGdriveClientIdField();
-    return;
-  }
-
-  const tokenClient = window.google?.accounts?.oauth2?.initTokenClient({
-    client_id: clientId,
-    scope: GDRIVE_SCOPE,
-    callback: (resp) => {
-      if (resp.error) { status.textContent = 'Error de autenticación: ' + resp.error; return; }
-      buildPicker(resp.access_token);
-    }
-  });
-
-  if (tokenClient) {
-    tokenClient.requestAccessToken();
-  } else {
-    // Fallback: load GIS library
-    if (!document.getElementById('gis-script')) {
-      const s = document.createElement('script');
-      s.id = 'gis-script';
-      s.src = 'https://accounts.google.com/gsi/client';
-      s.onload = launchPicker;
-      document.head.appendChild(s);
-    }
-  }
-}
-
-function buildPicker(accessToken) {
-  const status = document.getElementById('driveStatus');
-  status.textContent = '';
-  const picker = new google.picker.PickerBuilder()
-    .addView(new google.picker.DocsView()
-      .setIncludeFolders(false)
-      .setMimeTypes('image/jpeg,image/png,image/heic,image/webp'))
-    .setOAuthToken(accessToken)
-    .setTitle('Selecciona fotos de tickets')
-    .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
-    .setCallback(async data => {
-      if (data.action !== google.picker.Action.PICKED) return;
-      const docs = data.docs || [];
-      status.textContent = `⬇ Descargando ${docs.length} archivo(s) de Drive...`;
-      status.style.color = 'var(--accent2)';
-      const downloaded = [];
-      for (const doc of docs) {
-        try {
-          const r = await fetch(`https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media`, {
-            headers: { Authorization: `Bearer ${accessToken}` }
-          });
-          const blob = await r.blob();
-          const file = new File([blob], doc.name, { type: doc.mimeType });
-          downloaded.push(file);
-        } catch(e) {
-          status.textContent = `Error descargando ${doc.name}`;
-        }
-      }
-      if (downloaded.length) {
-        status.textContent = `✓ ${downloaded.length} archivo(s) de Drive listos`;
-        status.style.color = 'var(--success)';
-        handleFiles(downloaded);
-      }
-    })
-    .build();
-  picker.setVisible(true);
-}
-
-function showGdriveClientIdField() {
-  const block = document.querySelector('.gdrive-clientid');
-  if (block) { block.style.display = 'block'; return; }
-  const cfg = document.getElementById('btnDrive').parentElement;
-  const div = document.createElement('div');
-  div.className = 'gdrive-clientid field-group';
-  div.style.marginTop = '8px';
-  div.innerHTML = `<label>GOOGLE CLIENT ID</label>
-    <input type="text" id="cfgGdriveClientId" placeholder="xxxx.apps.googleusercontent.com"
-      style="font-size:11px" oninput="localStorage.setItem('g3_gcid',this.value)">`;
-  cfg.appendChild(div);
-  const saved = localStorage.getItem('g3_gcid');
-  if (saved) document.getElementById('cfgGdriveClientId').value = saved;
-}
-// Max base64 payload to send to the API. Keep this conservative for mobile browsers.
 const MAX_B64_BYTES = 4 * 1024 * 1024;
 
 async function prepareImage(file) {
@@ -714,10 +740,7 @@ async function handleFiles(fileList) {
   for (const f of newFiles) {
     if (f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name)) {
       const fingerprint = fileFingerprint(f);
-      if (uploadedFingerprints.has(fingerprint)) {
-        skipped++;
-        continue;
-      }
+      if (uploadedFingerprints.has(fingerprint)) { skipped++; continue; }
       try {
         const { b64, mime, previewUrl } = await prepareImage(f);
         uploadedFingerprints.add(fingerprint);
@@ -785,7 +808,6 @@ function removeFile(fileId) {
   checkReady();
 }
 
-
 function checkReady() {
   const hasToken = getAppToken().length > 10;
   const hasFiles = uploadedFiles.length > 0;
@@ -795,9 +817,6 @@ function checkReady() {
   else document.getElementById('btnProcess').title = '';
 }
 
-
-// Send file as-is to the API — no canvas, no recompression, maximum quality
-// Claude handles any orientation natively
 function fileToBase64(file) {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -807,13 +826,16 @@ function fileToBase64(file) {
   });
 }
 
-// ── GLOBAL CONFIG ──
-const TRUCKS = {
-  'G-01': { placas: 'VR-7129-C', patterns: ['VR-7129', 'VR7129', 'VR712', '7129'] },
-  'G-02': { placas: 'VS-4578-C', patterns: ['VS-4578', 'VS4578', 'VS457', '4578'] },
-};
+// ── DATE HELPERS ──
+function getActiveYear() {
+  const inicio = document.getElementById('cfgFechaInicio')?.value;
+  if (inicio) {
+    const y = new Date(inicio + 'T00:00:00').getFullYear();
+    if (!isNaN(y)) return y;
+  }
+  return new Date().getFullYear();
+}
 
-// ── DATE HELPERS — moved to global scope ──
 function buildFechasList(inicio, fin) {
   const dias = [];
   const d = new Date(inicio + 'T00:00:00');
@@ -844,7 +866,6 @@ function getWeekRange() {
   return { ok: true, dates: buildFechasList(inicio, fin), message: '' };
 }
 
-// Normalize a raw plate string to canonical form using TRUCKS config
 function normalizePlacas(raw) {
   const up = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g,'');
   for (const [eco, cfg] of Object.entries(TRUCKS)) {
@@ -855,8 +876,13 @@ function normalizePlacas(raw) {
 
 function normalizeEco(raw) {
   const up = String(raw || '').toUpperCase().replace(/\s/g, '');
-  if (/^(G-?0?1|0?1)$/.test(up)) return 'G-01';
-  if (/^(G-?0?2|0?2)$/.test(up)) return 'G-02';
+  for (const eco of Object.keys(TRUCKS)) {
+    const ecoNorm = eco.replace(/[^A-Z0-9]/g, '');
+    const upNorm  = up.replace(/[^A-Z0-9]/g, '');
+    if (upNorm === ecoNorm) return eco;
+    const ecoNum = eco.replace(/[^0-9]/g, '');
+    if (ecoNum && (upNorm === ecoNum || upNorm === ecoNum.replace(/^0+/,''))) return eco;
+  }
   return '';
 }
 
@@ -868,7 +894,11 @@ function normalizeFecha(raw) {
   let fecha = String(raw ?? '').trim();
   if (!fecha) return '';
   fecha = fecha.replace(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{1,4})$/, (_, d, m, y) => {
-    const fullY = y.length === 1 ? '202' + y : (y.length === 2 ? '20' + y : y);
+    let fullY;
+    if (y.length === 4) fullY = y;
+    else if (y.length === 2) fullY = String(Math.floor(new Date().getFullYear() / 100) * 100) + y;
+    else if (y.length === 1) fullY = String(Math.floor(new Date().getFullYear() / 10) * 10) + y;
+    else fullY = y;
     return `${d.padStart(2,'0')}/${m.padStart(2,'0')}/${fullY}`;
   });
   return fecha;
@@ -880,6 +910,49 @@ function isValidFecha(fecha) {
   const d = Number(m[1]), mo = Number(m[2]), y = Number(m[3]);
   const dt = new Date(y, mo - 1, d);
   return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
+}
+
+// ── DUPLICATE FOLIO DETECTION ──
+function checkDuplicateFolios() {
+  const groups = {};
+  rows.forEach(row => {
+    if (row.folio && /^\d{4}$/.test(row.folio)) {
+      if (!groups[row.folio]) groups[row.folio] = [];
+      groups[row.folio].push(row.id);
+    }
+  });
+  const dupIds = new Set(
+    Object.values(groups).filter(ids => ids.length > 1).flat()
+  );
+  let hasDups = false;
+  rows.forEach(row => {
+    row.isDuplicate = dupIds.has(row.id);
+    if (row.isDuplicate) hasDups = true;
+    const tr = document.getElementById(`row-${row.id}`);
+    if (tr) {
+      tr.classList.toggle('duplicate-folio', row.isDuplicate);
+      // Update dup badge in folio cell
+      let dupBadge = tr.querySelector('.dup-badge');
+      if (row.isDuplicate && !dupBadge) {
+        dupBadge = document.createElement('span');
+        dupBadge.className = 'dup-badge';
+        dupBadge.textContent = 'DUP';
+        const folioTd = tr.cells[3];
+        if (folioTd) folioTd.appendChild(dupBadge);
+      } else if (!row.isDuplicate && dupBadge) {
+        dupBadge.remove();
+      }
+    }
+  });
+  return hasDups;
+}
+
+function updateExportButtons() {
+  const hasDups = checkDuplicateFolios();
+  const dupNote = document.getElementById('dupNote');
+  if (dupNote) dupNote.style.display = hasDups ? 'flex' : 'none';
+  document.getElementById('btnExport').disabled = rows.length === 0 || hasDups;
+  document.getElementById('btnPdf').disabled = rows.length === 0 || hasDups;
 }
 
 // ── MAIN PROCESSING ──
@@ -904,6 +977,8 @@ async function startProcessing() {
   document.getElementById('btnExport').disabled = true;
   document.getElementById('btnPdf').disabled = true;
   document.getElementById('warnNote').style.display = 'none';
+  document.getElementById('dupNote').style.display = 'none';
+  document.getElementById('errorNote').style.display = 'none';
 
   const main = document.getElementById('mainPanel');
   main.innerHTML = `
@@ -933,7 +1008,6 @@ async function startProcessing() {
       </table>
     </div>`;
 
-  // Build work units: one per image/page
   const units = [];
   for (const entry of uploadedFiles) {
     entry.pages.forEach((b64, pi) => {
@@ -1012,6 +1086,33 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Crop a ticket bbox out of a preview image for the review modal
+async function cropImageForTicket(previewUrl, bbox) {
+  if (!bbox || !previewUrl) return null;
+  const { x1, y1, x2, y2 } = bbox;
+  const w = x2 - x1, h = y2 - y1;
+  // Only crop if bbox is meaningful (between 5% and 95% of each dimension)
+  if (w < 0.05 || h < 0.05 || w > 0.95 || h > 0.95) return null;
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const iw = img.naturalWidth, ih = img.naturalHeight;
+      const pad = 0.04; // 4% padding around the ticket
+      const cx1 = Math.max(0, x1 - pad), cy1 = Math.max(0, y1 - pad);
+      const cx2 = Math.min(1, x2 + pad), cy2 = Math.min(1, y2 + pad);
+      const cw = Math.floor((cx2 - cx1) * iw);
+      const ch = Math.floor((cy2 - cy1) * ih);
+      if (cw < 20 || ch < 20) { resolve(null); return; }
+      const canvas = document.createElement('canvas');
+      canvas.width = cw; canvas.height = ch;
+      canvas.getContext('2d').drawImage(img, Math.floor(cx1 * iw), Math.floor(cy1 * ih), cw, ch, 0, 0, cw, ch);
+      resolve(canvas.toDataURL('image/jpeg', 0.92));
+    };
+    img.onerror = () => resolve(null);
+    img.src = previewUrl;
+  });
+}
+
 async function processUnit(unit) {
   const log = document.getElementById('plog');
   const label = unit.sourceName;
@@ -1020,32 +1121,38 @@ async function processUnit(unit) {
 
   const weekRange = getWeekRange();
   const fechasValidas = weekRange.ok ? weekRange.dates : [];
+  const activeYear = getActiveYear();
+
+  const truckLines = Object.entries(TRUCKS).map(([eco, cfg]) => {
+    const first = cfg.patterns[0] || '';
+    return `- "${first}" o "${cfg.placas.replace(/-C$/',')}" → ${cfg.placas} / ${eco}`;
+  }).join('\n');
 
   const rangoFechas = fechasValidas.length
     ? `Las fechas válidas esta semana son: ${fechasValidas.join(', ')}. Usa el DÍA y MES que lees para encontrar la fecha exacta en esta lista — no elijas "la más cercana", usa el día y mes correctos.`
-    : 'El año siempre es 2026.';
+    : `El año siempre es ${activeYear}.`;
 
   const prompt = `Extrae los datos de cada ticket RCA de volteo visible. Puede haber más de uno.
 
 ORIENTACIÓN: El ticket puede estar normal, rotado 180° o en espejo. Lee el texto sin importar la orientación — si ves letras o números al revés, intérpretalos correctamente.
 
 PLACAS (empieza aquí, es el campo más legible):
-- Solo hay dos camiones posibles: VR-7129-C (G-01) y VS-4578-C (G-02)
-- "VR" o "7129" → VR-7129-C / G-01
-- "VS" o "4578" → VS-4578-C / G-02
+${truckLines}
 - Si placas ilegibles, usa el campo "CAMIÓN No. ECO:"
 
 FOLIO: número pre-impreso en rojo dentro de un recuadro (4 dígitos). No es manuscrito.
 
-FECHA: manuscrita, formato D-M-26 sin ceros. ${rangoFechas}
-Ejemplos: "1-5-26"=01/05/2026, "29-4-26"=29/04/2026, "4-5-26"=04/05/2026. Salida: DD/MM/YYYY.
-Si el año es un solo dígito ambiguo (ej: "1-5-4"), ignóralo — usa día y mes para encontrar la fecha en el rango.
+FECHA: manuscrita, formato D-M-${String(activeYear).slice(-2)} sin ceros. ${rangoFechas}
+Ejemplos: "1-5-${String(activeYear).slice(-2)}"=01/05/${activeYear}, "29-4-${String(activeYear).slice(-2)}"=29/04/${activeYear}. Salida: DD/MM/YYYY.
+Si el año es un solo dígito ambiguo, ignóralo — usa día y mes para encontrar la fecha en el rango.
 Si el día es visualmente ambiguo (no puedes distinguirlo con certeza), pon confident=false.
 
 Campo ilegible → "" y confident=false.
 
+Si hay MÁS DE UN ticket en la imagen, incluye "bbox" con las coordenadas normalizadas (0 a 1, origen arriba-izquierda) del área de cada ticket.
+
 Responde SOLO JSON sin texto extra:
-{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","placas":"VS-4578-C","confident":true}]}`;
+{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","placas":"VS-4578-C","confident":true,"bbox":{"x1":0.0,"y1":0.0,"x2":0.5,"y2":1.0}}]}`;
 
   let raw = '';
   try {
@@ -1055,7 +1162,7 @@ Responde SOLO JSON sin texto extra:
         { type: 'image', source: { type: 'base64', media_type: unit.mime, data: unit.b64 } },
         { type: 'text', text: prompt }
       ]
-    }], 600);
+    }], 700);
   } catch(e) {
     processingErrorCount++;
     addLog(log, `✗ ${label}: ${e.message}`, 'err');
@@ -1079,11 +1186,11 @@ Responde SOLO JSON sin texto extra:
   const multi = tickets.length > 1;
   if (multi) addLog(log, `📦 ${label}: ${tickets.length} tickets`, 'info');
 
-  const tiro     = document.getElementById('cfgTiro').value;
-  const servicio = document.getElementById('cfgServicio').value;
-  const capacidad= document.getElementById('cfgCapacidad').value;
+  const tiro      = document.getElementById('cfgTiro').value;
+  const servicio  = document.getElementById('cfgServicio').value;
+  const capacidad = document.getElementById('cfgCapacidad').value;
 
-  tickets.forEach(t => {
+  for (const t of tickets) {
     const normFromPlacas = normalizePlacas(t.placas);
     const ecoFromModel = normalizeEco(t.numero_economico);
     let eco, placas, confident = t.confident !== false;
@@ -1095,9 +1202,7 @@ Responde SOLO JSON sin texto extra:
       eco = ecoFromModel;
       placas = TRUCKS[eco]?.placas || '';
     } else {
-      eco = '';
-      placas = '';
-      confident = false;
+      eco = ''; placas = ''; confident = false;
     }
 
     const folio = cleanFolio(t.folio);
@@ -1106,36 +1211,44 @@ Responde SOLO JSON sin texto extra:
     let fecha = normalizeFecha(t.fecha);
     if (fecha && !isValidFecha(fecha)) confident = false;
 
-    // If date not in valid range, try to find by matching day+month (ignores wrong year)
     if (fecha && fechasValidas.length && !fechasValidas.includes(fecha)) {
       const parts = fecha.split('/');
       if (parts.length === 3) {
         const [dd, mm] = parts;
         const byDayMonth = fechasValidas.find(f => f.startsWith(`${dd}/${mm}/`));
         if (byDayMonth) {
-          fecha = byDayMonth; // correct match by day+month
+          fecha = byDayMonth;
         } else {
-          confident = false; // day+month not in range — flag for manual review
+          confident = false;
         }
       }
     }
     if (!fecha || !isValidFecha(fecha)) confident = false;
 
+    // Crop preview for multi-ticket images when bbox is available
+    let croppedPreviewUrl = null;
+    if (multi && t.bbox) {
+      croppedPreviewUrl = await cropImageForTicket(unit.entry.previewUrl, t.bbox);
+    }
+
     const row = {
       id: rowCounter++,
       previewUrl: unit.entry.previewUrl,
+      croppedPreviewUrl,
       sourceName: label,
       multiTicket: multi,
       fecha, folio,
       numero_economico: eco, placas,
       tiro, servicio, capacidad, confident,
+      reviewed: false,
+      isDuplicate: false,
     };
     row.confident = row.confident && hasRequiredRowData(row);
     rows.push(row);
     renderRow(row);
     addLog(log, `${confident ? '✓' : '⚠'} Folio ${row.folio||'—'} | ${eco||'—'} | ${fecha||'—'}`,
       confident ? 'ok' : 'warn');
-  });
+  }
 }
 
 function renderRow(row) {
@@ -1147,23 +1260,28 @@ function renderRow(row) {
   const tr = document.createElement('tr');
   tr.id = `row-${row.id}`;
   if (!row.confident) tr.classList.add('low-conf');
+  if (row.isDuplicate) tr.classList.add('duplicate-folio');
 
-  // ── Source cell: clickable thumb only (no rotate buttons in table) ──
+  // ── # cell with reviewed dot ──
+  const numTd = document.createElement('td');
+  numTd.style.cssText = 'color:var(--muted);width:38px;white-space:nowrap';
+  const dot = document.createElement('span');
+  dot.className = `rev-dot ${row.reviewed ? 'reviewed' : 'pending'}`;
+  numTd.appendChild(dot);
+  numTd.appendChild(document.createTextNode(row._sortedIdx ?? rows.length));
+
+  // ── Source cell ──
   const srcTd = document.createElement('td');
-
   const thumbWrap = document.createElement('div');
   thumbWrap.className = 'thumb-wrap';
   thumbWrap.style.cursor = 'zoom-in';
-
   const img = document.createElement('img');
   img.className = 'thumb';
   img.src = row.previewUrl;
   img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
   thumbWrap.appendChild(img);
-  // Always opens lightbox — works for both OK and Revisar rows
   thumbWrap.addEventListener('click', () => openLightbox(row.previewUrl));
   srcTd.appendChild(thumbWrap);
-
   if (row.multiTicket) {
     const badge = document.createElement('span');
     badge.className = 'multi-badge';
@@ -1184,6 +1302,7 @@ function renderRow(row) {
     fechaInput.value = r.fecha;
     r.confident = hasRequiredRowData(r);
     refreshRowConfidence(r);
+    updateExportButtons();
   });
   fechaTd.appendChild(fechaInput);
 
@@ -1193,7 +1312,7 @@ function renderRow(row) {
   folioInput.className = 'cell-edit';
   folioInput.value = row.folio;
   folioInput.placeholder = '0000';
-  folioInput.style.width = '80px';
+  folioInput.style.width = '70px';
   folioInput.addEventListener('change', () => {
     const r = rows.find(x => x.id === row.id);
     if (!r) return;
@@ -1201,30 +1320,25 @@ function renderRow(row) {
     folioInput.value = r.folio;
     r.confident = hasRequiredRowData(r);
     refreshRowConfidence(r);
+    updateExportButtons();
   });
   folioTd.appendChild(folioInput);
 
   // ── ECO select cell ──
   const ecoTd = document.createElement('td');
-  const ecoColor = row.numero_economico === 'G-01' ? '#a78bfa' : row.numero_economico === 'G-02' ? '#34d399' : 'var(--muted)';
+  const ecoColor = TRUCKS[row.numero_economico] ? getEcoColor(row.numero_economico) : 'var(--muted)';
   const ecoSel = document.createElement('select');
   ecoSel.style.cssText = `background:var(--bg);border:none;border-bottom:1px solid transparent;color:${ecoColor};font-family:var(--mono);font-size:12px;outline:none;`;
-  // Blank option for when ECO is unknown
-  ['', 'G-01', 'G-02'].forEach(val => {
-    const opt = document.createElement('option');
-    opt.value = val;
-    opt.textContent = val || '— ?';
-    if (row.numero_economico === val) opt.selected = true;
-    ecoSel.appendChild(opt);
-  });
+  populateEcoSelect(ecoSel, row.numero_economico);
   ecoSel.addEventListener('change', () => {
     const r = rows.find(x => x.id === row.id);
     r.numero_economico = ecoSel.value;
     r.placas = TRUCKS[ecoSel.value]?.placas || '';
     placaTd.textContent = r.placas;
-    ecoSel.style.color = ecoSel.value === 'G-01' ? '#a78bfa' : ecoSel.value === 'G-02' ? '#34d399' : 'var(--muted)';
+    ecoSel.style.color = getEcoColor(ecoSel.value);
     r.confident = hasRequiredRowData(r);
     refreshRowConfidence(r);
+    updateExportButtons();
   });
   ecoTd.appendChild(ecoSel);
 
@@ -1241,7 +1355,7 @@ function renderRow(row) {
   tiroSpan.textContent = row.tiro.split('/')[0].trim();
   tiroTd.appendChild(tiroSpan);
 
-  // ── Confidence cell + manual review button ──
+  // ── Confidence cell + review button ──
   const confTd = document.createElement('td');
   confTd.style.whiteSpace = 'nowrap';
   const confBadge = document.createElement('span');
@@ -1254,14 +1368,16 @@ function renderRow(row) {
   reviewBtn.addEventListener('click', () => openRowReview(row.id));
   confTd.append(confBadge, reviewBtn);
 
-  // ── Row number cell ──
-  const numTd = document.createElement('td');
-  numTd.style.cssText = 'color:var(--muted);width:28px';
-  numTd.textContent = row._sortedIdx ?? rows.length;
-
   tr.append(numTd, srcTd, fechaTd, folioTd, ecoTd, placaTd, tiroTd, confTd);
   tbody.appendChild(tr);
   updateStats();
+}
+
+function getEcoColor(eco) {
+  const ecoKeys = Object.keys(TRUCKS);
+  const idx = ecoKeys.indexOf(eco);
+  const colors = ['#a78bfa', '#34d399', '#60a5fa', '#f97316', '#e879f9'];
+  return idx >= 0 ? colors[idx % colors.length] : 'var(--muted)';
 }
 
 function setProgress(done, total, title='') {
@@ -1292,12 +1408,15 @@ function hasRequiredRowData(row) {
 function refreshRowConfidence(row) {
   const tr = document.getElementById(`row-${row.id}`);
   if (tr) {
-    tr.classList.toggle('low-conf', !row.confident);
+    tr.classList.toggle('low-conf', !row.confident && !row.isDuplicate);
     const conf = tr.querySelector('.conf-badge');
     if (conf) {
       conf.className = row.confident ? 'conf-badge conf-high' : 'conf-badge conf-low';
       conf.textContent = row.confident ? '✓ OK' : '⚠ Revisar';
     }
+    // Update reviewed dot
+    const dot = tr.querySelector('.rev-dot');
+    if (dot) dot.className = `rev-dot ${row.reviewed ? 'reviewed' : 'pending'}`;
   }
   updateStats();
 }
@@ -1305,19 +1424,24 @@ function refreshRowConfidence(row) {
 function updateStats() {
   const ok   = rows.filter(r=>r.confident).length;
   const warn = rows.filter(r=>!r.confident).length;
-  const g01  = rows.filter(r=>r.numero_economico.includes('G-01')).length;
-  const g02  = rows.filter(r=>r.numero_economico.includes('G-02')).length;
   const precio = parseFloat(document.getElementById('cfgPrecio')?.value) || 900;
   const subtotal = rows.length * precio;
+
   document.getElementById('sOk').textContent = ok;
   document.getElementById('sWarn').textContent = warn;
   document.getElementById('sTotal').textContent = rows.length;
-  document.getElementById('sG01').textContent = g01;
-  document.getElementById('sG02').textContent = g02;
-  const sSub = document.getElementById('sSubtotal');
-  if (sSub) sSub.textContent = '$' + subtotal.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   document.getElementById('warnNote').style.display = warn > 0 ? 'flex' : 'none';
   document.getElementById('weekLabel').textContent = detectWeekLabel();
+
+  const sSub = document.getElementById('sSubtotal');
+  if (sSub) sSub.textContent = '$' + subtotal.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+  // Per-truck stats (first two for backwards compat, rest ignored in DOM)
+  const ecoKeys = Object.keys(TRUCKS);
+  const g01El = document.getElementById('sG01');
+  const g02El = document.getElementById('sG02');
+  if (g01El) g01El.textContent = rows.filter(r => r.numero_economico === ecoKeys[0]).length;
+  if (g02El) g02El.textContent = rows.filter(r => r.numero_economico === ecoKeys[1]).length;
 }
 
 function finalize() {
@@ -1326,12 +1450,8 @@ function finalize() {
   btn.classList.remove('running');
   btn.innerHTML = '<span>✓</span> LISTO — procesar de nuevo';
   btn.disabled = false;
-  const hasBlockingErrors = processingErrorCount > 0;
-  document.getElementById('btnExport').disabled = rows.length === 0 || hasBlockingErrors;
-  document.getElementById('btnPdf').disabled = rows.length === 0 || hasBlockingErrors;
-  updateStats();
 
-  // Sort table: ECO (G-01 first) then date ascending
+  // Sort: ECO then date
   rows.sort((a, b) => {
     const ecoA = a.numero_economico || 'ZZ';
     const ecoB = b.numero_economico || 'ZZ';
@@ -1341,22 +1461,40 @@ function finalize() {
     return 0;
   });
 
-  // Re-render tbody in sorted order
   const tbody = document.getElementById('tbody');
   if (tbody) {
     tbody.innerHTML = '';
     rows.forEach((row, i) => {
-      row._sortedIdx = i + 1; // update display number
+      row._sortedIdx = i + 1;
       renderRow(row);
     });
   }
 
-  document.getElementById('headerMeta').textContent = hasBlockingErrors
-    ? `${processingErrorCount} error(es) de API/JSON — vuelve a procesar antes de exportar`
-    : `${rows.length} tickets listos — revisa y descarga`;
+  updateStats();
+  updateExportButtons();  // also runs checkDuplicateFolios
 
-  // Launch review for ALL tickets so user can verify each one
-  if (rows.length > 0 && !hasBlockingErrors) startReview([...rows]);
+  // Show error banner if some images failed but we still have rows to export
+  const errorNote = document.getElementById('errorNote');
+  if (errorNote) {
+    if (processingErrorCount > 0 && rows.length > 0) {
+      errorNote.textContent = `⚠ ${processingErrorCount} imagen(es) no se procesaron — exportando solo los tickets exitosos`;
+      errorNote.style.display = 'flex';
+    } else if (processingErrorCount > 0 && rows.length === 0) {
+      errorNote.textContent = `✗ ${processingErrorCount} imagen(es) fallaron — no hay tickets para exportar`;
+      errorNote.style.display = 'flex';
+      document.getElementById('btnExport').disabled = true;
+      document.getElementById('btnPdf').disabled = true;
+    } else {
+      errorNote.style.display = 'none';
+    }
+  }
+
+  document.getElementById('headerMeta').textContent =
+    rows.length > 0
+      ? `${rows.length} tickets listos — revisa y descarga`
+      : `${processingErrorCount} error(es) — sin tickets para exportar`;
+
+  if (rows.length > 0) startReview([...rows]);
 }
 
 // ── REVIEW MODAL ──
@@ -1370,7 +1508,7 @@ function startReview(queue, manual = false, startIdx = 0) {
   showReviewItem();
 }
 
-function showReviewItem() {
+async function showReviewItem() {
   if (reviewIdx >= reviewQueue.length) {
     document.getElementById('reviewModal').classList.add('hidden');
     updateStats();
@@ -1380,29 +1518,30 @@ function showReviewItem() {
   reviewRotDeg = thumbRotation[row.id] || 0;
 
   document.getElementById('reviewModal').classList.remove('hidden');
-  document.getElementById('reviewCounter').textContent =
-    `${reviewIdx + 1} / ${reviewQueue.length}`;
+  document.getElementById('reviewCounter').textContent = `${reviewIdx + 1} / ${reviewQueue.length}`;
   document.getElementById('rvSource').textContent = row.sourceName;
   document.getElementById('rvFecha').value = row.fecha;
   document.getElementById('rvFolio').value = row.folio;
-  document.getElementById('rvEco').value = row.numero_economico || '';
 
-  // Show confidence state in title
+  const rvEco = document.getElementById('rvEco');
+  populateEcoSelect(rvEco, row.numero_economico || '');
+
   const title = document.getElementById('reviewTitle');
   title.textContent = row.confident ? '✓ TICKET APROBADO' : '⚠ REVISAR TICKET';
   title.style.color = row.confident ? 'var(--success)' : 'var(--accent)';
 
-  // Show/hide prev button
   document.getElementById('btnPrev').style.display = reviewIdx > 0 ? '' : 'none';
-
-  // Last ticket: change approve text
   document.getElementById('btnApprove').textContent =
     reviewIdx === reviewQueue.length - 1 ? '✓ Aprobar y cerrar' : '✓ Aprobar';
 
-  const img = document.getElementById('reviewImg');
-  img.src = row.previewUrl || '';
-  img.style.transform = reviewRotDeg ? `rotate(${reviewRotDeg}deg)` : '';
-  img.style.maxHeight = (reviewRotDeg === 90 || reviewRotDeg === 270) ? '220px' : '260px';
+  const imgEl = document.getElementById('reviewImg');
+  // Use cropped preview for multi-ticket images when available
+  const displaySrc = (row.multiTicket && row.croppedPreviewUrl) ? row.croppedPreviewUrl : (row.previewUrl || '');
+  imgEl.src = displaySrc;
+  // Store full image for lightbox
+  imgEl.dataset.fullSrc = row.previewUrl || '';
+  imgEl.style.transform = reviewRotDeg ? `rotate(${reviewRotDeg}deg)` : '';
+  imgEl.style.maxHeight = (reviewRotDeg === 90 || reviewRotDeg === 270) ? '220px' : '260px';
 }
 
 function applyReview() {
@@ -1412,21 +1551,20 @@ function applyReview() {
 
   r.fecha  = normalizeFecha(document.getElementById('rvFecha').value);
   r.folio  = cleanFolio(document.getElementById('rvFolio').value);
-  const eco = normalizeEco(document.getElementById('rvEco').value);
+  const eco = normalizeEco(document.getElementById('rvEco').value) || document.getElementById('rvEco').value;
   r.numero_economico = eco;
   r.placas = TRUCKS[eco]?.placas || '';
   r.confident = hasRequiredRowData(r);
+  r.reviewed = true;
 
-  // Update the table row
   const tr = document.getElementById(`row-${r.id}`);
   if (tr) {
     tr.classList.toggle('low-conf', !r.confident);
-    // Update visible inputs in the table
     const inputs = tr.querySelectorAll('.cell-edit');
     if (inputs[0]) inputs[0].value = r.fecha;
     if (inputs[1]) inputs[1].value = r.folio;
     const sel = tr.querySelector('select');
-    if (sel) { sel.value = eco; sel.style.color = eco === 'G-01' ? '#a78bfa' : '#34d399'; }
+    if (sel) { sel.value = eco; sel.style.color = getEcoColor(eco); }
     const placa = tr.querySelector('.placa-cell');
     if (placa) placa.textContent = r.placas;
     const conf = tr.querySelector('.conf-badge');
@@ -1434,10 +1572,13 @@ function applyReview() {
       conf.className = r.confident ? 'conf-badge conf-high' : 'conf-badge conf-low';
       conf.textContent = r.confident ? '✓ OK' : '⚠ Revisar';
     }
+    const dot = tr.querySelector('.rev-dot');
+    if (dot) dot.className = 'rev-dot reviewed';
   }
 
   thumbRotation[row.id] = reviewRotDeg;
   updateStats();
+  updateExportButtons();
   reviewIdx++;
   showReviewItem();
 }
@@ -1448,13 +1589,13 @@ function skipReview() {
 }
 
 function prevReview() {
-  if (reviewIdx > 0) {
-    reviewIdx--;
-    showReviewItem();
-  }
+  if (reviewIdx > 0) { reviewIdx--; showReviewItem(); }
 }
 
-// Rotation state used by review modal
+function closeReviewModal() {
+  document.getElementById('reviewModal').classList.add('hidden');
+}
+
 const thumbRotation = {};
 
 function clearThumbRotations() {
@@ -1473,17 +1614,15 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('lbZoomReset').addEventListener('click', () => { lbZoom = 1; applyLbTransform(); });
   document.getElementById('lbRotL').addEventListener('click',      () => { lbRot = (lbRot - 90 + 360) % 360; applyLbTransform(); });
   document.getElementById('lbRotR').addEventListener('click',      () => { lbRot = (lbRot + 90) % 360; applyLbTransform(); });
-  // Scroll to zoom
   document.getElementById('lbImgWrap').addEventListener('wheel', e => {
     e.preventDefault();
     lbZoom = Math.min(5, Math.max(0.25, lbZoom - e.deltaY * 0.001));
     applyLbTransform();
   }, { passive: false });
-  // Escape key closes
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       closeLightbox();
-      document.getElementById('reviewModal').classList.add('hidden');
+      closeReviewModal();
     }
   });
 
@@ -1491,6 +1630,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnApprove').addEventListener('click', applyReview);
   document.getElementById('btnSkip').addEventListener('click', skipReview);
   document.getElementById('btnPrev').addEventListener('click', prevReview);
+  document.getElementById('btnCloseReview').addEventListener('click', closeReviewModal);
+
+  // Open full image in lightbox (not the cropped version)
+  document.getElementById('reviewImg').addEventListener('click', function() {
+    openLightbox(this.dataset.fullSrc || this.src);
+  });
+  document.getElementById('reviewImg').style.cursor = 'zoom-in';
+
   document.getElementById('rvRotL').addEventListener('click', () => {
     reviewRotDeg = (reviewRotDeg - 90 + 360) % 360;
     const img = document.getElementById('reviewImg');
@@ -1541,7 +1688,6 @@ async function exportExcel() {
   prepareRowsForExport();
   const wb = XLSX.utils.book_new();
 
-  // Sort: ECO first (G-01 before G-02), then date, then folio — same as preview
   const sorted = [...rows].sort((a, b) => {
     const ecoA = a.numero_economico || '';
     const ecoB = b.numero_economico || '';
@@ -1565,8 +1711,8 @@ async function exportExcel() {
   sorted.forEach((row, i) => {
     sheetData.push([
       '', i + 1,
-      row.fecha,          // keep as string DD/MM/YYYY — no Date object conversion
-      row.folio || '',    // keep as string to preserve leading zeros
+      row.fecha,
+      row.folio || '',
       row.numero_economico,
       row.placas,
       row.capacidad,
@@ -1577,7 +1723,6 @@ async function exportExcel() {
 
   const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
-  // Yellow fill for low-confidence rows
   const yellowFill = { patternType: 'solid', fgColor: { rgb: 'FFFF00' } };
   sorted.forEach((row, i) => {
     if (!row.confident) {
@@ -1593,7 +1738,6 @@ async function exportExcel() {
     { wch: 2 }, { wch: 5 }, { wch: 12 }, { wch: 8 }, { wch: 16 },
     { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 25 }
   ];
-
   ws['!ref'] = `A1:I${sorted.length + 4}`;
 
   const sheetName = weekLabel.replace(/[\\/*?:[\]]/g, '-').substring(0, 31) || 'Semana';
@@ -1603,7 +1747,7 @@ async function exportExcel() {
   XLSX.writeFile(wb, fileName, { cellStyles: true, bookType: 'xlsx' });
 }
 
-// ── PDF EXPORT — matches the Word template format ──
+// ── PDF EXPORT ──
 function exportPDF() {
   prepareRowsForExport();
   const { jsPDF } = window.jspdf;
@@ -1614,7 +1758,6 @@ function exportPDF() {
   const weekLabel = detectWeekLabel();
   const year      = new Date().getFullYear();
 
-  // Sort same as Excel: ECO then date
   const sorted = [...rows].sort((a, b) => {
     const ecoA = a.numero_economico || 'ZZ', ecoB = b.numero_economico || 'ZZ';
     if (ecoA !== ecoB) return ecoA.localeCompare(ecoB);
@@ -1623,12 +1766,11 @@ function exportPDF() {
     return (a.folio || '').localeCompare(b.folio || '');
   });
 
-  const pageW  = 215.9; // letter portrait width mm
+  const pageW  = 215.9;
   const pageH  = 279.4;
   const margin = 14;
   let y = margin;
 
-  // ── Header ──
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.text('Persona Física: Gerardo García Gutiérrez', pageW / 2, y, { align: 'center' });
@@ -1640,16 +1782,9 @@ function exportPDF() {
   doc.text(title, pageW / 2, y, { align: 'center' });
   y += 12;
 
-  // ── Main data table ──
   const tableBody = sorted.map((row, i) => [
-    i + 1,
-    row.fecha,
-    row.folio,
-    row.numero_economico,
-    row.placas,
-    row.capacidad,
-    row.servicio,
-    row.tiro
+    i + 1, row.fecha, row.folio, row.numero_economico,
+    row.placas, row.capacidad, row.servicio, row.tiro
   ]);
 
   doc.autoTable({
@@ -1657,14 +1792,8 @@ function exportPDF() {
     margin: { left: margin, right: margin },
     head: [['No.', 'Fecha', 'Folio', 'Núm. Eco.', 'Placas', 'Cap. M3', 'Servicio', 'Tiro']],
     body: tableBody,
-    styles: {
-      font: 'helvetica', fontSize: 7, cellPadding: 1.2,
-      lineColor: [180, 180, 180], lineWidth: 0.2, overflow: 'linebreak',
-    },
-    headStyles: {
-      fillColor: [46, 117, 182], textColor: 255,
-      fontStyle: 'bold', fontSize: 7, halign: 'center',
-    },
+    styles: { font: 'helvetica', fontSize: 7, cellPadding: 1.2, lineColor: [180,180,180], lineWidth: 0.2, overflow: 'linebreak' },
+    headStyles: { fillColor: [46,117,182], textColor: 255, fontStyle: 'bold', fontSize: 7, halign: 'center' },
     columnStyles: {
       0: { halign: 'center', cellWidth: 9  },
       1: { halign: 'center', cellWidth: 20 },
@@ -1675,10 +1804,10 @@ function exportPDF() {
       6: { halign: 'center', cellWidth: 18 },
       7: { halign: 'left',   cellWidth: 'auto' },
     },
-    alternateRowStyles: { fillColor: [245, 249, 255] },
+    alternateRowStyles: { fillColor: [245,249,255] },
     didParseCell: (data) => {
       if (data.section === 'body' && sorted[data.row.index] && !sorted[data.row.index].confident) {
-        data.cell.styles.fillColor = [255, 255, 180];
+        data.cell.styles.fillColor = [255,255,180];
       }
     },
     didDrawPage: () => {
@@ -1690,7 +1819,6 @@ function exportPDF() {
     }
   });
 
-  // ── Totals — correct formulas ──
   const subtotal = sorted.length * precio;
   const iva      =  subtotal *  0.16;
   const ivaRet   =  subtotal * -0.04;
@@ -1702,12 +1830,9 @@ function exportPDF() {
     return n < 0 ? `($  ${abs})` : `$  ${abs}`;
   };
 
-  // 8 rows × ~6.5mm each + 7mm gap ≈ 59mm needed
   const TOTALS_HEIGHT = 59;
   const spaceLeft = pageH - margin - doc.lastAutoTable.finalY;
-  const summaryY = spaceLeft < TOTALS_HEIGHT
-    ? (doc.addPage(), margin)                    // not enough room — new page
-    : doc.lastAutoTable.finalY + 7;              // fits — stay on same page
+  const summaryY = spaceLeft < TOTALS_HEIGHT ? (doc.addPage(), margin) : doc.lastAutoTable.finalY + 7;
 
   doc.autoTable({
     startY: summaryY,
@@ -1726,20 +1851,14 @@ function exportPDF() {
       [{ content: 'TOTAL', styles: { halign: 'right', fontStyle: 'bold' } },
        { content: fmt(total), styles: { halign: 'right', fontStyle: 'bold' } }],
     ],
-    styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
-    columnStyles: {
-      0: { cellWidth: 65 },
-      1: { cellWidth: 35, halign: 'right' },
-    },
+    styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.5, lineColor: [200,200,200], lineWidth: 0.2 },
+    columnStyles: { 0: { cellWidth: 65 }, 1: { cellWidth: 35, halign: 'right' } },
     theme: 'plain',
   });
 
   const pdfName = `Conciliacion_${weekLabel.replace(/\s/g, '_').replace(/–/g, '-')}_${year}.pdf`;
   doc.save(pdfName);
 }
-
-
-
 
 // ── ZOOM VIEWER ──
 let lbZoom = 1, lbRot = 0;
@@ -1753,8 +1872,7 @@ function openLightbox(src) {
 }
 
 function applyLbTransform() {
-  document.getElementById('lbImg').style.transform =
-    `rotate(${lbRot}deg) scale(${lbZoom})`;
+  document.getElementById('lbImg').style.transform = `rotate(${lbRot}deg) scale(${lbZoom})`;
 }
 
 function closeLightbox() {
@@ -1762,7 +1880,6 @@ function closeLightbox() {
   document.getElementById('lbImg').src = '';
 }
 
-// ── MANUAL SINGLE-ROW REVIEW ──
 function openRowReview(rowId) {
   const idx = rows.findIndex(r => r.id === rowId);
   if (idx === -1) return;
@@ -1770,11 +1887,7 @@ function openRowReview(rowId) {
 }
 
 function clearAll() {
-  if (processing) {
-    alert('Espera a que termine el procesamiento antes de limpiar.');
-    return;
-  }
-  // Revoke any existing blob URLs to free memory
+  if (processing) { alert('Espera a que termine el procesamiento antes de limpiar.'); return; }
   uploadedFiles.forEach(e => { if (e.previewUrl && e.previewUrl.startsWith('blob:')) URL.revokeObjectURL(e.previewUrl); });
   uploadedFiles = []; rows = []; rowCounter = 0; fileCounter = 0; processingErrorCount = 0;
   uploadedFingerprints.clear();
@@ -1794,6 +1907,8 @@ function clearAll() {
     </div>`;
   document.getElementById('bottomBar').style.display = 'none';
   document.getElementById('warnNote').style.display = 'none';
+  document.getElementById('dupNote').style.display = 'none';
+  document.getElementById('errorNote').style.display = 'none';
   document.getElementById('btnProcess').innerHTML = '<span>⚡</span> PROCESAR TICKETS';
   document.getElementById('btnProcess').classList.remove('running');
   document.getElementById('btnProcess').disabled = true;
