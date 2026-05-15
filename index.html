@@ -142,6 +142,9 @@
   tbody tr:hover td { background: var(--surface2); }
   tbody tr.low-conf td { background: var(--warn-bg) !important; border-bottom-color: #2a1f00; }
   tbody tr.low-conf:hover td { background: #2e2600 !important; }
+  tbody tr.dup-folio td { background: #2a0008 !important; border-bottom-color: #3a0010; }
+  tbody tr.dup-folio:hover td { background: #350010 !important; }
+  .dup-badge { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 600; background: #3a0010; color: #ef4444; border: 1px solid #7f1d1d; margin-left: 4px; vertical-align: middle; }
 
   /* multi-ticket badge */
   .multi-badge {
@@ -478,7 +481,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.5';
+const APP_VERSION = 'V 1.6';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
@@ -1185,6 +1188,7 @@ function renderRow(row) {
     folioInput.value = r.folio;
     r.confident = hasRequiredRowData(r);
     refreshRowConfidence(r);
+    checkDuplicateFolios();
   });
   folioTd.appendChild(folioInput);
 
@@ -1285,6 +1289,29 @@ function refreshRowConfidence(row) {
   updateStats();
 }
 
+function checkDuplicateFolios() {
+  const counts = {};
+  rows.forEach(r => { if (r.folio) counts[r.folio] = (counts[r.folio] || 0) + 1; });
+  rows.forEach(r => {
+    const isDup = Boolean(r.folio && counts[r.folio] > 1);
+    r.isDuplicate = isDup;
+    const tr = document.getElementById(`row-${r.id}`);
+    if (!tr) return;
+    tr.classList.toggle('dup-folio', isDup);
+    const folioTd = tr.querySelectorAll('td')[3];
+    if (!folioTd) return;
+    let badge = folioTd.querySelector('.dup-badge');
+    if (isDup && !badge) {
+      badge = document.createElement('span');
+      badge.className = 'dup-badge';
+      badge.textContent = 'DUP';
+      folioTd.appendChild(badge);
+    } else if (!isDup && badge) {
+      badge.remove();
+    }
+  });
+}
+
 function updateStats() {
   const ok   = rows.filter(r=>r.confident).length;
   const warn = rows.filter(r=>!r.confident).length;
@@ -1299,7 +1326,9 @@ function updateStats() {
   document.getElementById('sG02').textContent = g02;
   const sSub = document.getElementById('sSubtotal');
   if (sSub) sSub.textContent = '$' + subtotal.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const dupCount = rows.filter(r => r.isDuplicate).length;
   const warnParts = [];
+  if (dupCount > 0) warnParts.push(`🔴 ${dupCount} folio(s) duplicado(s) — resuelve antes de exportar`);
   if (warn > 0) warnParts.push(`⚠ ${warn} fila(s) amarilla(s) requieren revisión`);
   if (processingErrorCount > 0) warnParts.push(`✗ ${processingErrorCount} imagen(es) no se procesaron`);
   const warnNote = document.getElementById('warnNote');
@@ -1309,6 +1338,10 @@ function updateStats() {
   } else {
     warnNote.style.display = 'none';
   }
+  const btnExport = document.getElementById('btnExport');
+  const btnPdf = document.getElementById('btnPdf');
+  if (btnExport) btnExport.disabled = rows.length === 0 || dupCount > 0;
+  if (btnPdf) btnPdf.disabled = rows.length === 0 || dupCount > 0;
   document.getElementById('weekLabel').textContent = detectWeekLabel();
 }
 
@@ -1340,6 +1373,7 @@ function finalize() {
       row._sortedIdx = i + 1;
       renderRow(row);
     });
+    checkDuplicateFolios();
   }
 
   if (processingErrorCount > 0) {
@@ -1444,6 +1478,7 @@ function applyReview() {
   }
 
   thumbRotation[row.id] = reviewRotDeg;
+  checkDuplicateFolios();
   updateStats();
   reviewIdx++;
   showReviewItem();
