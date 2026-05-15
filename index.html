@@ -507,7 +507,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.10';
+const APP_VERSION = 'V 1.11';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
@@ -1057,7 +1057,7 @@ Si el día es visualmente ambiguo (no puedes distinguirlo con certeza), pon conf
 
 Campo ilegible → "" y confident=false.
 
-BBOX: Coordenadas normalizadas (0.0–1.0) del área que ocupa cada ticket en la imagen: {"x":izquierda,"y":arriba,"w":ancho,"h":alto}. Si hay un solo ticket usa {"x":0,"y":0,"w":1,"h":1}. Si hay múltiples, ajusta cada bbox para abarcar solo ese ticket con un pequeño margen.
+BBOX: Coordenadas normalizadas (0.0–1.0) del área que ocupa cada ticket en la imagen: {"x":izquierda,"y":arriba,"w":ancho,"h":alto}. Si hay un solo ticket usa {"x":0,"y":0,"w":1,"h":1}. Si hay múltiples, ajusta cada bbox para abarcar solo ese ticket. CRÍTICO: el bbox SIEMPRE debe incluir completamente el número de FOLIO (recuadro rojo pre-impreso con 4 dígitos) — no puede quedar fuera ni recortado.
 
 Responde SOLO JSON sin texto extra:
 {"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","placas":"VS-4578-C","confident":true,"bbox":{"x":0.0,"y":0.0,"w":1.0,"h":1.0}}]}`;
