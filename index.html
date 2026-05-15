@@ -163,6 +163,13 @@
     cursor: pointer; transition: all 0.15s; font-family: var(--mono);
   }
   .review-row-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .del-row-btn {
+    display: inline-flex; align-items: center; margin-left: 4px;
+    padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    cursor: pointer; transition: all 0.15s; font-family: var(--mono);
+  }
+  .del-row-btn:hover { border-color: var(--danger); color: var(--danger); }
 
   .thumb-wrap { width: 64px; height: 44px; overflow: hidden; border-radius: 4px; border: 1px solid var(--border); flex-shrink: 0; position: relative; }
   .thumb { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
@@ -481,7 +488,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.6';
+const APP_VERSION = 'V 1.7';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
@@ -1239,7 +1246,12 @@ function renderRow(row) {
   reviewBtn.textContent = '✎';
   reviewBtn.title = 'Revisar este ticket';
   reviewBtn.addEventListener('click', () => openRowReview(row.id));
-  confTd.append(confBadge, reviewBtn);
+  const delBtn = document.createElement('button');
+  delBtn.className = 'del-row-btn';
+  delBtn.textContent = '✕';
+  delBtn.title = 'Eliminar ticket';
+  delBtn.addEventListener('click', () => deleteRow(row.id));
+  confTd.append(confBadge, reviewBtn, delBtn);
 
   // ── Row number cell ──
   const numTd = document.createElement('td');
@@ -1287,6 +1299,32 @@ function refreshRowConfidence(row) {
     }
   }
   updateStats();
+}
+
+function deleteRow(rowId) {
+  const r = rows.find(x => x.id === rowId);
+  if (!r) return;
+  if (!r.isDuplicate) {
+    if (!confirm(`¿Eliminar el ticket folio ${r.folio || '—'} (${r.numero_economico || '—'}, ${r.fecha || '—'})?`)) return;
+  }
+  rows.splice(rows.findIndex(x => x.id === rowId), 1);
+  const tr = document.getElementById(`row-${rowId}`);
+  if (tr) tr.remove();
+  renumberRows();
+  checkDuplicateFolios();
+  updateStats();
+}
+
+function renumberRows() {
+  const tbody = document.getElementById('tbody');
+  if (!tbody) return;
+  [...tbody.querySelectorAll('tr')].forEach((tr, i) => {
+    const numTd = tr.querySelector('td:first-child');
+    if (numTd) numTd.textContent = i + 1;
+    const rowId = parseInt(tr.id.replace('row-', ''));
+    const r = rows.find(x => x.id === rowId);
+    if (r) r._sortedIdx = i + 1;
+  });
 }
 
 function checkDuplicateFolios() {
