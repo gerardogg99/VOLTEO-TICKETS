@@ -1062,7 +1062,7 @@ Responde SOLO JSON sin texto extra:
         { type: 'image', source: { type: 'base64', media_type: unit.mime, data: unit.b64 } },
         { type: 'text', text: prompt }
       ]
-    }], 600);
+    }], 1000);
   } catch(e) {
     processingErrorCount++;
     addLog(log, `✗ ${label}: ${e.message}`, 'err');
