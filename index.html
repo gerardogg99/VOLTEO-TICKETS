@@ -146,6 +146,20 @@
   tbody tr.dup-folio:hover td { background: #350010 !important; }
   .dup-badge { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 600; background: #3a0010; color: #ef4444; border: 1px solid #7f1d1d; margin-left: 4px; vertical-align: middle; }
 
+  thead th.sortable { cursor: pointer; user-select: none; }
+  thead th.sortable:hover { color: var(--text); }
+  thead th.sort-asc, thead th.sort-desc { color: var(--accent); }
+  .sort-icon { margin-left: 3px; font-size: 9px; opacity: 0.35; }
+  thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: '⇅'; }
+  thead th.sort-asc .sort-icon { opacity: 1; color: var(--accent); }
+  thead th.sort-asc .sort-icon::after { content: '▲'; }
+  thead th.sort-desc .sort-icon { opacity: 1; color: var(--accent); }
+  thead th.sort-desc .sort-icon::after { content: '▼'; }
+  .table-toolbar { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+  .btn-reset-sort { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 3px 10px; cursor: pointer; font-size: 10px; font-family: var(--mono); transition: all 0.15s; letter-spacing: 0.04em; }
+  .btn-reset-sort:hover { border-color: var(--accent2); color: var(--accent2); }
+  .btn-reset-sort.hidden { display: none; }
+
   /* multi-ticket badge */
   .multi-badge {
     display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px;
@@ -509,7 +523,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.15.1';
+const APP_VERSION = 'V 1.15.2';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
@@ -537,6 +551,8 @@ let rows = [];
 let processing = false;
 let rowCounter = 0;
 let processingErrorCount = 0;
+let sortCol = null; // null = natural order (ECO+date from finalize)
+let sortDir = 1;    // 1 = asc, -1 = desc
 
 // ── DRAG & DROP — supports files AND folders ──
 const dropZone = document.getElementById('dropZone');
@@ -908,6 +924,7 @@ async function startProcessing() {
   }
 
   processing = true; rows = []; rowCounter = 0; processingErrorCount = 0;
+  sortCol = null; sortDir = 1;
   reviewQueue = []; reviewIdx = 0; reviewCropMode = true; clearThumbRotations();
 
   const btn = document.getElementById('btnProcess');
@@ -938,11 +955,20 @@ async function startProcessing() {
       <div class="stat"><div class="stat-val" id="sG02" style="color:#34d399">0</div><div class="stat-lbl">G-02</div></div>
       <div class="stat"><div class="stat-val" id="sSubtotal" style="color:var(--accent);font-size:13px">$0</div><div class="stat-lbl">SUBTOTAL</div></div>
     </div>
+    <div class="table-toolbar hidden" id="tableToolbar">
+      <button class="btn-reset-sort hidden" id="btnResetSort" onclick="resetSort()">↺ Restablecer orden</button>
+    </div>
     <div class="table-wrap" id="tableWrap" style="display:none">
       <table id="dataTable">
         <thead><tr>
-          <th>#</th><th>FUENTE</th><th>FECHA</th><th>FOLIO</th>
-          <th>NÚM. ECO.</th><th>PLACAS</th><th>TIRO</th><th>CONF.</th>
+          <th>#</th>
+          <th class="sortable" data-col="source" onclick="sortTable('source')">FUENTE <span class="sort-icon"></span></th>
+          <th class="sortable" data-col="fecha" onclick="sortTable('fecha')">FECHA <span class="sort-icon"></span></th>
+          <th class="sortable" data-col="folio" onclick="sortTable('folio')">FOLIO <span class="sort-icon"></span></th>
+          <th class="sortable" data-col="eco" onclick="sortTable('eco')">NÚM. ECO. <span class="sort-icon"></span></th>
+          <th class="sortable" data-col="placas" onclick="sortTable('placas')">PLACAS <span class="sort-icon"></span></th>
+          <th class="sortable" data-col="tiro" onclick="sortTable('tiro')">TIRO <span class="sort-icon"></span></th>
+          <th class="sortable" data-col="conf" onclick="sortTable('conf')">CONF. <span class="sort-icon"></span></th>
         </tr></thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -1421,6 +1447,75 @@ function updateStats() {
   document.getElementById('weekLabel').textContent = detectWeekLabel();
 }
 
+// ── TABLE SORT ──
+function sortTable(col) {
+  sortDir = (sortCol === col) ? sortDir * -1 : 1;
+  sortCol = col;
+  rerenderSorted();
+}
+
+function resetSort() {
+  sortCol = null;
+  sortDir = 1;
+  rerenderSorted();
+}
+
+function getSortedRows() {
+  if (!sortCol) return [...rows].sort((a, b) => (a._naturalOrder ?? a.id) - (b._naturalOrder ?? b.id));
+  return [...rows].sort((a, b) => {
+    let cmp = 0;
+    switch (sortCol) {
+      case 'fecha': {
+        const da = parseDate(a.fecha), db = parseDate(b.fecha);
+        cmp = (da && db) ? da - db : (da ? 1 : db ? -1 : 0);
+        break;
+      }
+      case 'folio':
+        cmp = (parseInt(a.folio) || 0) - (parseInt(b.folio) || 0);
+        break;
+      case 'eco':
+        cmp = (a.numero_economico || '').localeCompare(b.numero_economico || '');
+        break;
+      case 'placas':
+        cmp = (a.placas || '').localeCompare(b.placas || '');
+        break;
+      case 'tiro':
+        cmp = (a.tiro || '').localeCompare(b.tiro || '');
+        break;
+      case 'conf':
+        cmp = (b.confident ? 1 : 0) - (a.confident ? 1 : 0);
+        break;
+      case 'source':
+        cmp = (a.sourceName || '').localeCompare(b.sourceName || '');
+        break;
+    }
+    return sortDir * cmp;
+  });
+}
+
+function rerenderSorted() {
+  const tbody = document.getElementById('tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  getSortedRows().forEach((row, i) => {
+    row._sortedIdx = i + 1;
+    renderRow(row);
+  });
+  checkDuplicateFolios();
+  updateSortIndicators();
+}
+
+function updateSortIndicators() {
+  document.querySelectorAll('thead th.sortable').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.col === sortCol) th.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
+  });
+  const toolbar = document.getElementById('tableToolbar');
+  const resetBtn = document.getElementById('btnResetSort');
+  if (toolbar) toolbar.classList.toggle('hidden', !sortCol);
+  if (resetBtn) resetBtn.classList.toggle('hidden', !sortCol);
+}
+
 function finalize() {
   processing = false;
   const btn = document.getElementById('btnProcess');
@@ -1431,7 +1526,7 @@ function finalize() {
   document.getElementById('btnPdf').disabled = rows.length === 0;
   updateStats();
 
-  // Sort table: ECO (G-01 first) then date ascending
+  // Default order: ECO (G-01 first) then date ascending — saved as _naturalOrder
   rows.sort((a, b) => {
     const ecoA = a.numero_economico || 'ZZ';
     const ecoB = b.numero_economico || 'ZZ';
@@ -1440,17 +1535,10 @@ function finalize() {
     if (da && db) return da - db;
     return 0;
   });
+  rows.forEach((row, i) => { row._naturalOrder = i; });
 
-  // Re-render tbody in sorted order
-  const tbody = document.getElementById('tbody');
-  if (tbody) {
-    tbody.innerHTML = '';
-    rows.forEach((row, i) => {
-      row._sortedIdx = i + 1;
-      renderRow(row);
-    });
-    checkDuplicateFolios();
-  }
+  sortCol = null; sortDir = 1;
+  rerenderSorted();
 
   if (processingErrorCount > 0) {
     document.getElementById('headerMeta').textContent =
@@ -2012,6 +2100,7 @@ function clearAll() {
   uploadedFingerprints.clear();
   clearThumbRotations();
   reviewQueue = []; reviewIdx = 0; reviewRotDeg = 0; reviewCropMode = true;
+  sortCol = null; sortDir = 1;
   const fileInput = document.getElementById('fileInput');
   if (fileInput) fileInput.value = '';
   document.getElementById('reviewModal').classList.add('hidden');
