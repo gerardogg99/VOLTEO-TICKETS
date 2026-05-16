@@ -1902,6 +1902,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Mobile drawer controls ──
   document.getElementById('btnMenuOpen')?.addEventListener('click', openDrawer);
   document.getElementById('drawerBackdrop')?.addEventListener('click', closeDrawer);
+  if (window.innerWidth <= 767) openDrawer();
 
   // ── Lightbox controls ──
   document.getElementById('lbClose').addEventListener('click', closeLightbox);
