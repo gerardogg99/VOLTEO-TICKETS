@@ -327,17 +327,87 @@
   .truck-add-form .field-group { margin-bottom: 6px; }
   .btn-save-truck { width: 100%; padding: 6px 8px; background: var(--accent2); border: none; border-radius: 5px; color: #fff; font-family: var(--mono); font-size: 11px; font-weight: 600; cursor: pointer; margin-top: 4px; }
   .btn-save-truck:hover { background: #2563eb; }
+
+  /* ── Drawer backdrop (mobile) ── */
+  #drawerBackdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55); z-index: 99;
+  }
+  #drawerBackdrop.visible { display: block; }
+
+  /* ── Hamburger button ── */
+  #btnMenuOpen {
+    background: transparent; border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; font-size: 18px; line-height: 1;
+    width: 36px; height: 36px; cursor: pointer; flex-shrink: 0;
+    display: none; align-items: center; justify-content: center;
+  }
+
+  /* ── Mobile responsive ── */
+  @media (max-width: 767px) {
+    /* Single-column layout */
+    .app { grid-template-columns: 1fr; }
+
+    /* Sidebar becomes a fixed overlay drawer */
+    .sidebar {
+      position: fixed; top: 56px; left: 0; bottom: 0;
+      width: 88vw; max-width: 340px;
+      z-index: 100;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+    }
+    .sidebar.drawer-open { transform: translateX(0); }
+
+    /* Show hamburger */
+    #btnMenuOpen { display: flex; }
+
+    /* Main panel takes full width */
+    .main { padding: 1rem; }
+
+    /* Table: horizontal scroll + larger row tap targets */
+    .table-wrap { overflow-x: auto; max-height: 60vh; }
+    thead th { padding: 12px 8px; }
+    tbody td { padding: 10px 8px; }
+
+    /* Larger tap targets for action buttons */
+    .review-row-btn { min-width: 36px; min-height: 36px; padding: 4px 8px; }
+    .del-row-btn    { min-width: 36px; min-height: 36px; padding: 4px 8px; }
+
+    /* Bottom bar: stack buttons full-width */
+    .bottom-bar {
+      flex-direction: column; align-items: stretch; gap: 0.5rem;
+      padding: 0.75rem 1rem;
+    }
+    .bottom-bar .btn { width: 100%; justify-content: center; text-align: center; }
+    .bottom-bar .week-label { text-align: center; }
+    .bottom-bar .warn-note { margin-left: 0; }
+
+    /* Stats bar: allow wrap on very small screens */
+    .stats-bar { flex-wrap: wrap; }
+    .stat { min-width: 30%; }
+
+    /* Review modal: full width on mobile */
+    .review-box { width: 96vw; }
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">G3 VOLTEOS <span>// Conciliador de Tickets</span></div>
+  <div style="display:flex;align-items:center;gap:0.75rem">
+    <button id="btnMenuOpen" aria-label="Menú" style="display:none">☰</button>
+    <div class="logo">G3 VOLTEOS <span>// Conciliador de Tickets</span></div>
+  </div>
   <div style="display:flex;align-items:center;gap:1rem">
     <span id="versionBadge" style="font-family:var(--mono);font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--accent);padding:2px 8px;border-radius:4px;letter-spacing:0.08em"></span>
     <div class="header-meta" id="headerMeta">Listo para procesar</div>
   </div>
 </header>
+
+<div id="drawerBackdrop"></div>
 
 <div class="app">
   <aside class="sidebar">
@@ -526,7 +596,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.16';
+const APP_VERSION = 'V 1.17';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
@@ -929,9 +999,20 @@ function isValidFecha(fecha) {
   return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
 }
 
+// ── MOBILE DRAWER ──
+function openDrawer() {
+  document.querySelector('.sidebar').classList.add('drawer-open');
+  document.getElementById('drawerBackdrop').classList.add('visible');
+}
+function closeDrawer() {
+  document.querySelector('.sidebar').classList.remove('drawer-open');
+  document.getElementById('drawerBackdrop').classList.remove('visible');
+}
+
 // ── MAIN PROCESSING ──
 async function startProcessing() {
   if (processing) return;
+  closeDrawer(); // auto-close sidebar on mobile when processing starts
 
   const weekRange = getWeekRange();
   if (!weekRange.ok) {
@@ -1818,6 +1899,10 @@ function clearThumbRotations() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // ── Mobile drawer controls ──
+  document.getElementById('btnMenuOpen')?.addEventListener('click', openDrawer);
+  document.getElementById('drawerBackdrop')?.addEventListener('click', closeDrawer);
+
   // ── Lightbox controls ──
   document.getElementById('lbClose').addEventListener('click', closeLightbox);
   document.getElementById('lbOverlay').addEventListener('click', e => {
