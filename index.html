@@ -129,7 +129,7 @@
   .log-line.err { color: var(--danger); }
   .log-line.info { color: var(--accent2); }
 
-  .table-wrap { overflow-y: auto; max-height: 620px; border: 1px solid var(--border); border-radius: 8px; }
+  .table-wrap { overflow-y: auto; max-height: 800px; border: 1px solid var(--border); border-radius: 8px; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   thead { position: sticky; top: 0; z-index: 10; }
   thead th {
@@ -149,12 +149,15 @@
   thead th.sortable { cursor: pointer; user-select: none; }
   thead th.sortable:hover { color: var(--text); }
   thead th.sort-asc, thead th.sort-desc { color: var(--accent); }
+  thead th.sort-secondary { color: var(--muted) !important; }
   .sort-icon { margin-left: 3px; font-size: 9px; opacity: 0.35; }
   thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: '⇅'; }
   thead th.sort-asc .sort-icon { opacity: 1; color: var(--accent); }
   thead th.sort-asc .sort-icon::after { content: '▲'; }
   thead th.sort-desc .sort-icon { opacity: 1; color: var(--accent); }
   thead th.sort-desc .sort-icon::after { content: '▼'; }
+  thead th.sort-secondary .sort-icon { opacity: 0.5; color: var(--muted); }
+  .sort-icon[data-priority]::before { content: attr(data-priority); font-size: 7px; vertical-align: super; margin-right: 1px; }
   .table-toolbar { display: flex; justify-content: flex-end; margin-bottom: 4px; }
   .btn-reset-sort { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 3px 10px; cursor: pointer; font-size: 10px; font-family: var(--mono); transition: all 0.15s; letter-spacing: 0.04em; }
   .btn-reset-sort:hover { border-color: var(--accent2); color: var(--accent2); }
@@ -523,7 +526,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.15.2';
+const APP_VERSION = 'V 1.15.3';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
@@ -551,8 +554,7 @@ let rows = [];
 let processing = false;
 let rowCounter = 0;
 let processingErrorCount = 0;
-let sortCol = null; // null = natural order (ECO+date from finalize)
-let sortDir = 1;    // 1 = asc, -1 = desc
+let sortStack = []; // [{col, dir}, ...] — index 0 = primary (most recent click)
 
 // ── DRAG & DROP — supports files AND folders ──
 const dropZone = document.getElementById('dropZone');
@@ -924,7 +926,7 @@ async function startProcessing() {
   }
 
   processing = true; rows = []; rowCounter = 0; processingErrorCount = 0;
-  sortCol = null; sortDir = 1;
+  sortStack = [];
   reviewQueue = []; reviewIdx = 0; reviewCropMode = true; clearThumbRotations();
 
   const btn = document.getElementById('btnProcess');
@@ -1448,48 +1450,54 @@ function updateStats() {
 }
 
 // ── TABLE SORT ──
+// sortStack: [{col, dir}, ...] — index 0 is primary (most recently clicked).
+// Clicking a column already in the stack moves it to primary and flips its direction.
+// This mirrors Excel multi-key sort: last clicked = primary, earlier clicks = tiebreakers.
+
 function sortTable(col) {
-  sortDir = (sortCol === col) ? sortDir * -1 : 1;
-  sortCol = col;
+  const existing = sortStack.findIndex(s => s.col === col);
+  if (existing === 0) {
+    sortStack[0].dir *= -1;
+  } else if (existing > 0) {
+    const [entry] = sortStack.splice(existing, 1);
+    entry.dir *= -1;
+    sortStack.unshift(entry);
+  } else {
+    sortStack.unshift({ col, dir: 1 });
+    if (sortStack.length > 3) sortStack.length = 3;
+  }
   rerenderSorted();
 }
 
 function resetSort() {
-  sortCol = null;
-  sortDir = 1;
+  sortStack = [];
   rerenderSorted();
 }
 
-function getSortedRows() {
-  if (!sortCol) return [...rows].sort((a, b) => (a._naturalOrder ?? a.id) - (b._naturalOrder ?? b.id));
-  return [...rows].sort((a, b) => {
-    let cmp = 0;
-    switch (sortCol) {
-      case 'fecha': {
-        const da = parseDate(a.fecha), db = parseDate(b.fecha);
-        cmp = (da && db) ? da - db : (da ? 1 : db ? -1 : 0);
-        break;
-      }
-      case 'folio':
-        cmp = (parseInt(a.folio) || 0) - (parseInt(b.folio) || 0);
-        break;
-      case 'eco':
-        cmp = (a.numero_economico || '').localeCompare(b.numero_economico || '');
-        break;
-      case 'placas':
-        cmp = (a.placas || '').localeCompare(b.placas || '');
-        break;
-      case 'tiro':
-        cmp = (a.tiro || '').localeCompare(b.tiro || '');
-        break;
-      case 'conf':
-        cmp = (b.confident ? 1 : 0) - (a.confident ? 1 : 0);
-        break;
-      case 'source':
-        cmp = (a.sourceName || '').localeCompare(b.sourceName || '');
-        break;
+function compareByCol(a, b, col) {
+  switch (col) {
+    case 'fecha': {
+      const da = parseDate(a.fecha), db = parseDate(b.fecha);
+      return (da && db) ? da - db : (da ? 1 : db ? -1 : 0);
     }
-    return sortDir * cmp;
+    case 'folio':   return (parseInt(a.folio) || 0) - (parseInt(b.folio) || 0);
+    case 'eco':     return (a.numero_economico || '').localeCompare(b.numero_economico || '');
+    case 'placas':  return (a.placas || '').localeCompare(b.placas || '');
+    case 'tiro':    return (a.tiro || '').localeCompare(b.tiro || '');
+    case 'conf':    return (b.confident ? 1 : 0) - (a.confident ? 1 : 0);
+    case 'source':  return (a.sourceName || '').localeCompare(b.sourceName || '');
+    default:        return 0;
+  }
+}
+
+function getSortedRows() {
+  if (!sortStack.length) return [...rows].sort((a, b) => (a._naturalOrder ?? a.id) - (b._naturalOrder ?? b.id));
+  return [...rows].sort((a, b) => {
+    for (const { col, dir } of sortStack) {
+      const cmp = compareByCol(a, b, col);
+      if (cmp !== 0) return dir * cmp;
+    }
+    return 0;
   });
 }
 
@@ -1507,13 +1515,19 @@ function rerenderSorted() {
 
 function updateSortIndicators() {
   document.querySelectorAll('thead th.sortable').forEach(th => {
-    th.classList.remove('sort-asc', 'sort-desc');
-    if (th.dataset.col === sortCol) th.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
+    th.classList.remove('sort-asc', 'sort-desc', 'sort-secondary');
+    const iconEl = th.querySelector('.sort-icon');
+    if (iconEl) iconEl.removeAttribute('data-priority');
+    const idx = sortStack.findIndex(s => s.col === th.dataset.col);
+    if (idx === -1) return;
+    const { dir } = sortStack[idx];
+    th.classList.add(dir === 1 ? 'sort-asc' : 'sort-desc');
+    if (idx > 0) th.classList.add('sort-secondary');
+    if (iconEl && sortStack.length > 1) iconEl.setAttribute('data-priority', idx + 1);
   });
-  const toolbar = document.getElementById('tableToolbar');
-  const resetBtn = document.getElementById('btnResetSort');
-  if (toolbar) toolbar.classList.toggle('hidden', !sortCol);
-  if (resetBtn) resetBtn.classList.toggle('hidden', !sortCol);
+  const hasSort = sortStack.length > 0;
+  document.getElementById('tableToolbar')?.classList.toggle('hidden', !hasSort);
+  document.getElementById('btnResetSort')?.classList.toggle('hidden', !hasSort);
 }
 
 function finalize() {
@@ -1537,7 +1551,7 @@ function finalize() {
   });
   rows.forEach((row, i) => { row._naturalOrder = i; });
 
-  sortCol = null; sortDir = 1;
+  sortStack = [];
   rerenderSorted();
 
   if (processingErrorCount > 0) {
@@ -2100,7 +2114,7 @@ function clearAll() {
   uploadedFingerprints.clear();
   clearThumbRotations();
   reviewQueue = []; reviewIdx = 0; reviewRotDeg = 0; reviewCropMode = true;
-  sortCol = null; sortDir = 1;
+  sortStack = [];
   const fileInput = document.getElementById('fileInput');
   if (fileInput) fileInput.value = '';
   document.getElementById('reviewModal').classList.add('hidden');
