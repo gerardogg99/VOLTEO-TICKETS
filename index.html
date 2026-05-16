@@ -1477,10 +1477,10 @@ function cropAroundFolio(url, folioBbox) {
     const img = new Image();
     img.onload = () => {
       const fw = folioBbox.w, fh = folioBbox.h;
-      const x1 = Math.max(0, folioBbox.x - fw * 5.0);
-      const y1 = Math.max(0, folioBbox.y - fh * 2.0);
-      const x2 = Math.min(1, folioBbox.x + fw + fw * 1.5);
-      const y2 = Math.min(1, folioBbox.y + fh + fh * 9.0);
+      const x1 = Math.max(0, folioBbox.x - fw * 3.5);
+      const y1 = Math.max(0, folioBbox.y - fh * 1.8);
+      const x2 = Math.min(1, folioBbox.x + fw + fw * 0.5);
+      const y2 = Math.min(1, folioBbox.y + fh + fh * 8.5);
       const sx = Math.round(x1 * img.naturalWidth);
       const sy = Math.round(y1 * img.naturalHeight);
       const sw = Math.round((x2 - x1) * img.naturalWidth);
