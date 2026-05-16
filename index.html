@@ -563,7 +563,7 @@
           <input type="file" id="fileInput" accept="image/*,.heic,.heif" multiple onchange="handleFiles(this.files)">
           <div class="upload-icon">🖼️</div>
           <div class="upload-text">
-            <strong>Arrastra aquí</strong> o haz clic<br>
+            <strong>Arrastra aquí</strong> o haz click<br>
             Fotos — o arrastra una <strong>carpeta entera</strong>
           </div>
           <div class="type-pills">
@@ -684,7 +684,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v2';
+const APP_VERSION = 'V 2.0.1';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
@@ -880,7 +880,7 @@ function renderFileList() {
       `<strong style="color:var(--success)">${uploadedFiles.length} archivo(s)</strong> — ${total} imagen(es) total`;
   } else {
     document.querySelector('.upload-text').innerHTML =
-      '<strong>Arrastra aquí</strong> o haz clic<br>Fotos — o arrastra una <strong>carpeta entera</strong>';
+      '<strong>Arrastra aquí</strong> o haz click<br>Fotos — o arrastra una <strong>carpeta entera</strong>';
   }
   updateUploadBadge();
 }
@@ -2381,7 +2381,7 @@ function clearAll() {
   closeLightbox();
   document.getElementById('fileList').replaceChildren();
   document.querySelector('.upload-text').innerHTML =
-    '<strong>Arrastra aquí</strong> o haz clic<br>Fotos — o arrastra una <strong>carpeta entera</strong>';
+    '<strong>Arrastra aquí</strong> o haz click<br>Fotos — o arrastra una <strong>carpeta entera</strong>';
   document.getElementById('mainPanel').innerHTML = `
     <div class="empty-state" id="emptyState">
       <div class="empty-icon">🧾</div>
