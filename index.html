@@ -370,6 +370,23 @@
   .btn-save-truck { width: 100%; padding: 7px 8px; background: var(--accent); border: none; border-radius: 6px; color: #181a20; font-family: var(--sans); font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 4px; transition: background 0.15s; }
   .btn-save-truck:hover { background: var(--accent-hover); }
 
+  /* ── Cloud storage buttons ── */
+  .btn-cloud {
+    width: 100%; display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: 6px;
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--muted); font-family: var(--sans); font-size: 12px; font-weight: 500;
+    cursor: not-allowed; transition: border-color 0.15s; text-align: left;
+  }
+  .cloud-icon { font-size: 15px; flex-shrink: 0; }
+  .cloud-label { flex: 1; }
+  .cloud-soon {
+    font-size: 9px; font-family: var(--mono); font-weight: 600; letter-spacing: 0.06em;
+    padding: 2px 6px; border-radius: 3px;
+    background: var(--surface2); color: var(--muted); border: 1px solid var(--border);
+    text-transform: uppercase; white-space: nowrap;
+  }
+
   /* ── Drawer backdrop (mobile) ── */
   #drawerBackdrop {
     display: none; position: fixed; inset: 0;
@@ -476,8 +493,8 @@
               <span onclick="const i=document.getElementById('cfgAppToken');i.type=i.type==='password'?'text':'password'"
                 style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);font-size:13px">👁</span>
             </div>
-            <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">
-              Guardado solo en tu navegador.<br>Debe coincidir con <code style="color:var(--accent2)">APP_TOKEN</code> en el Worker.
+            <div style="font-size:10px;color:var(--muted);margin-top:4px;">
+              Guardado solo en tu navegador.
             </div>
           </div>
         </div>
@@ -492,9 +509,6 @@
               <input type="date" id="cfgFechaInicio" style="flex:1;font-size:11px;padding:4px 6px">
               <span style="color:var(--muted);font-size:11px">→</span>
               <input type="date" id="cfgFechaFin" style="flex:1;font-size:11px;padding:4px 6px">
-            </div>
-            <div style="font-size:10px;color:var(--muted);margin-top:3px">
-              Ayuda a la IA a confirmar fechas dudosas
             </div>
           </div>
           <div class="field-group">
@@ -560,6 +574,22 @@
           </div>
         </div>
         <div class="file-list" id="fileList"></div>
+      </div>
+
+      <div>
+        <div class="section-label">☁️ Importar desde nube</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button class="btn-cloud" disabled title="Próximamente">
+            <span class="cloud-icon">🟦</span>
+            <span class="cloud-label">Dropbox</span>
+            <span class="cloud-soon">Próximamente</span>
+          </button>
+          <button class="btn-cloud" disabled title="Próximamente">
+            <span class="cloud-icon">🔴</span>
+            <span class="cloud-label">Google Drive</span>
+            <span class="cloud-soon">Próximamente</span>
+          </button>
+        </div>
       </div>
 
     </div><!-- /tabUpload -->
@@ -654,7 +684,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.19.1';
+const APP_VERSION = 'v2';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
