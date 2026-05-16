@@ -509,7 +509,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.13';
+const APP_VERSION = 'V 1.14';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
@@ -1061,10 +1061,8 @@ Si el día es visualmente ambiguo (no puedes distinguirlo con certeza), pon conf
 
 Campo ilegible → "" y confident=false.
 
-BBOX: Coordenadas normalizadas (0.0–1.0) del área que ocupa cada ticket en la imagen: {"x":izquierda,"y":arriba,"w":ancho,"h":alto}. Si hay un solo ticket usa {"x":0,"y":0,"w":1,"h":1}. Si hay múltiples, ajusta cada bbox para abarcar solo ese ticket.
-
 Responde SOLO JSON sin texto extra:
-{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","placas":"VS-4578-C","confident":true,"bbox":{"x":0.0,"y":0.0,"w":0.5,"h":1.0},"folio_bbox":{"x":0.05,"y":0.04,"w":0.12,"h":0.07}}]}`;
+{"tickets":[{"fecha":"DD/MM/YYYY","folio":"0984","numero_economico":"G-02","placas":"VS-4578-C","confident":true,"folio_bbox":{"x":0.05,"y":0.04,"w":0.12,"h":0.07}}]}`;
 
   let raw = '';
   try {
@@ -1148,7 +1146,6 @@ Responde SOLO JSON sin texto extra:
       fecha, folio,
       numero_economico: eco, placas,
       tiro, servicio, capacidad, confident,
-      bbox: t.bbox || null,
       folio_bbox: t.folio_bbox || null,
       reviewed: false,
     };
@@ -1463,31 +1460,32 @@ function finalize() {
   if (rows.length > 0) startReview([...rows]);
 }
 
-// ── BBOX CROP HELPERS ──
+// ── CROP HELPERS ──
 function isValidBbox(bbox) {
   return bbox &&
     typeof bbox.x === 'number' && typeof bbox.y === 'number' &&
     typeof bbox.w === 'number' && typeof bbox.h === 'number' &&
-    bbox.w > 0.05 && bbox.h > 0.05;
+    bbox.w > 0.01 && bbox.h > 0.01;
 }
 
-function expandBboxForFolio(bbox, folioBbox) {
-  if (!folioBbox || typeof folioBbox.x !== 'number') return bbox;
-  const x  = Math.min(bbox.x, folioBbox.x);
-  const y  = Math.min(bbox.y, folioBbox.y);
-  const x2 = Math.max(bbox.x + bbox.w, folioBbox.x + folioBbox.w);
-  const y2 = Math.max(bbox.y + bbox.h, folioBbox.y + folioBbox.h);
-  return { x, y, w: x2 - x, h: y2 - y };
-}
-
-function cropImageToBbox(url, bbox) {
+// Expands the folio_bbox outward with fixed factors to show the full ticket.
+// The folio box sits in the upper-right of the ticket form, so we expand:
+//   left ×5 and down ×9 (form fields), right ×1.5 and up ×2 (logo).
+// If the ticket is partially out of frame, the expansion is clamped to image bounds.
+function cropAroundFolio(url, folioBbox) {
   return new Promise(resolve => {
     const img = new Image();
     img.onload = () => {
-      const sx = Math.round(bbox.x * img.naturalWidth);
-      const sy = Math.round(bbox.y * img.naturalHeight);
-      const sw = Math.round(bbox.w * img.naturalWidth);
-      const sh = Math.round(bbox.h * img.naturalHeight);
+      const fw = folioBbox.w, fh = folioBbox.h;
+      const x1 = Math.max(0, folioBbox.x - fw * 5.0);
+      const y1 = Math.max(0, folioBbox.y - fh * 2.0);
+      const x2 = Math.min(1, folioBbox.x + fw + fw * 1.5);
+      const y2 = Math.min(1, folioBbox.y + fh + fh * 9.0);
+      const sx = Math.round(x1 * img.naturalWidth);
+      const sy = Math.round(y1 * img.naturalHeight);
+      const sw = Math.round((x2 - x1) * img.naturalWidth);
+      const sh = Math.round((y2 - y1) * img.naturalHeight);
+      if (sw <= 0 || sh <= 0) { resolve(url); return; }
       const canvas = document.createElement('canvas');
       canvas.width = sw; canvas.height = sh;
       canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
@@ -1554,7 +1552,7 @@ function showReviewItem() {
 
   const img = document.getElementById('reviewImg');
   const toggleBtn = document.getElementById('btnImgToggle');
-  const hasCrop = row.multiTicket && isValidBbox(row.bbox);
+  const hasCrop = row.multiTicket && isValidBbox(row.folio_bbox);
 
   reviewCropMode = true; // always start in crop mode for each ticket
 
@@ -1566,8 +1564,7 @@ function showReviewItem() {
 
   const loadCrop = () => {
     img.src = '';
-    const effectiveBbox = expandBboxForFolio(row.bbox, row.folio_bbox);
-    cropImageToBbox(row.previewUrl, effectiveBbox).then(applyImgSrc);
+    cropAroundFolio(row.previewUrl, row.folio_bbox).then(applyImgSrc);
     toggleBtn.textContent = 'Ver imagen completa';
   };
 
