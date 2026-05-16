@@ -526,7 +526,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.15.3';
+const APP_VERSION = 'V 1.16';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
@@ -555,6 +555,7 @@ let processing = false;
 let rowCounter = 0;
 let processingErrorCount = 0;
 let sortStack = []; // [{col, dir}, ...] — index 0 = primary (most recent click)
+let _processBatchStart = 0; // row count before current processing batch (for targeting review)
 
 // ── DRAG & DROP — supports files AND folders ──
 const dropZone = document.getElementById('dropZone');
@@ -671,7 +672,7 @@ async function handleFiles(fileList) {
       try {
         const { b64, mime, previewUrl } = await prepareImage(f);
         uploadedFingerprints.add(fingerprint);
-        uploadedFiles.push({ id: fileCounter++, fingerprint, file: f, type: 'image', previewUrl, pages: [b64], mimes: [mime], pageCount: 1 });
+        uploadedFiles.push({ id: fileCounter++, fingerprint, file: f, type: 'image', previewUrl, pages: [b64], mimes: [mime], pageCount: 1, status: 'pending' });
       } catch(e) {
         failed++;
         console.error(`No se pudo preparar ${f.name}:`, e);
@@ -737,12 +738,25 @@ function removeFile(fileId) {
 
 
 function checkReady() {
+  if (processing) return;
   const hasToken = getAppToken().length > 10;
-  const hasFiles = uploadedFiles.length > 0;
-  document.getElementById('btnProcess').disabled = !(hasToken && hasFiles);
-  if (!hasToken) document.getElementById('btnProcess').title = 'Ingresa el token de acceso primero';
-  else if (!hasFiles) document.getElementById('btnProcess').title = 'Sube al menos una imagen primero';
-  else document.getElementById('btnProcess').title = '';
+  const pendingCount = uploadedFiles.filter(f => !f.status || f.status === 'pending' || f.status === 'error').length;
+  const canProcess = hasToken && pendingCount > 0;
+  const btn = document.getElementById('btnProcess');
+  btn.disabled = !canProcess;
+
+  if (rows.length > 0 && pendingCount > 0) {
+    btn.innerHTML = `<span>⚡</span> PROCESAR PENDIENTES (${pendingCount})`;
+  } else if (rows.length > 0) {
+    btn.innerHTML = '<span>✓</span> TODO PROCESADO';
+  } else {
+    btn.innerHTML = '<span>⚡</span> PROCESAR TICKETS';
+  }
+
+  if (!hasToken) btn.title = 'Ingresa el token de acceso primero';
+  else if (pendingCount === 0 && uploadedFiles.length > 0) btn.title = 'Todas las imágenes ya fueron procesadas';
+  else if (uploadedFiles.length === 0) btn.title = 'Sube al menos una imagen primero';
+  else btn.title = '';
 }
 
 
@@ -917,7 +931,8 @@ function isValidFecha(fecha) {
 
 // ── MAIN PROCESSING ──
 async function startProcessing() {
-  if (processing || uploadedFiles.length === 0) return;
+  if (processing) return;
+
   const weekRange = getWeekRange();
   if (!weekRange.ok) {
     document.getElementById('headerMeta').textContent = weekRange.message;
@@ -925,60 +940,102 @@ async function startProcessing() {
     return;
   }
 
-  processing = true; rows = []; rowCounter = 0; processingErrorCount = 0;
-  sortStack = [];
-  reviewQueue = []; reviewIdx = 0; reviewCropMode = true; clearThumbRotations();
+  // Incremental mode: rows already exist — only process pending/error files
+  const isIncremental = rows.length > 0;
+  const filesToProcess = isIncremental
+    ? uploadedFiles.filter(f => f.status === 'pending' || f.status === 'error')
+    : uploadedFiles;
+
+  if (filesToProcess.length === 0) return;
+
+  processing = true; processingErrorCount = 0;
+  _processBatchStart = rows.length; // track where new rows start (for targeted review)
+
+  if (!isIncremental) {
+    rows = []; rowCounter = 0; sortStack = [];
+    reviewQueue = []; reviewIdx = 0; reviewCropMode = true; clearThumbRotations();
+    uploadedFiles.forEach(f => { f.status = 'pending'; });
+  }
 
   const btn = document.getElementById('btnProcess');
   btn.disabled = true; btn.classList.add('running');
   btn.innerHTML = '<span>⏳</span> PROCESANDO...';
 
-  document.getElementById('emptyState') && (document.getElementById('emptyState').style.display = 'none');
-  document.getElementById('bottomBar').style.display = 'flex';
-  document.getElementById('btnExport').disabled = true;
-  document.getElementById('btnPdf').disabled = true;
-  document.getElementById('warnNote').style.display = 'none';
+  if (!isIncremental) {
+    document.getElementById('emptyState') && (document.getElementById('emptyState').style.display = 'none');
+    document.getElementById('bottomBar').style.display = 'flex';
+    document.getElementById('btnExport').disabled = true;
+    document.getElementById('btnPdf').disabled = true;
+    document.getElementById('warnNote').style.display = 'none';
 
-  const main = document.getElementById('mainPanel');
-  main.innerHTML = `
-    <div class="progress-area" id="progressArea">
-      <div class="progress-header">
-        <span class="progress-title" id="progressTitle">Preparando...</span>
-        <span class="progress-pct" id="pct">0%</span>
+    const main = document.getElementById('mainPanel');
+    main.innerHTML = `
+      <div class="progress-area" id="progressArea">
+        <div class="progress-header">
+          <span class="progress-title" id="progressTitle">Preparando...</span>
+          <span class="progress-pct" id="pct">0%</span>
+        </div>
+        <div class="progress-bar-outer"><div class="progress-bar-inner" id="pbar" style="width:0%"></div></div>
+        <div class="progress-log" id="plog"></div>
       </div>
-      <div class="progress-bar-outer"><div class="progress-bar-inner" id="pbar" style="width:0%"></div></div>
-      <div class="progress-log" id="plog"></div>
-    </div>
-    <div class="stats-bar" id="statsBar" style="display:none">
-      <div class="stat"><div class="stat-val ok" id="sOk">0</div><div class="stat-lbl">SEGUROS</div></div>
-      <div class="stat"><div class="stat-val warn" id="sWarn">0</div><div class="stat-lbl">REVISAR</div></div>
-      <div class="stat"><div class="stat-val" id="sTotal">0</div><div class="stat-lbl">VIAJES</div></div>
-      <div class="stat"><div class="stat-val" id="sG01" style="color:#a78bfa">0</div><div class="stat-lbl">G-01</div></div>
-      <div class="stat"><div class="stat-val" id="sG02" style="color:#34d399">0</div><div class="stat-lbl">G-02</div></div>
-      <div class="stat"><div class="stat-val" id="sSubtotal" style="color:var(--accent);font-size:13px">$0</div><div class="stat-lbl">SUBTOTAL</div></div>
-    </div>
-    <div class="table-toolbar hidden" id="tableToolbar">
-      <button class="btn-reset-sort hidden" id="btnResetSort" onclick="resetSort()">↺ Restablecer orden</button>
-    </div>
-    <div class="table-wrap" id="tableWrap" style="display:none">
-      <table id="dataTable">
-        <thead><tr>
-          <th>#</th>
-          <th class="sortable" data-col="source" onclick="sortTable('source')">FUENTE <span class="sort-icon"></span></th>
-          <th class="sortable" data-col="fecha" onclick="sortTable('fecha')">FECHA <span class="sort-icon"></span></th>
-          <th class="sortable" data-col="folio" onclick="sortTable('folio')">FOLIO <span class="sort-icon"></span></th>
-          <th class="sortable" data-col="eco" onclick="sortTable('eco')">NÚM. ECO. <span class="sort-icon"></span></th>
-          <th class="sortable" data-col="placas" onclick="sortTable('placas')">PLACAS <span class="sort-icon"></span></th>
-          <th class="sortable" data-col="tiro" onclick="sortTable('tiro')">TIRO <span class="sort-icon"></span></th>
-          <th class="sortable" data-col="conf" onclick="sortTable('conf')">CONF. <span class="sort-icon"></span></th>
-        </tr></thead>
-        <tbody id="tbody"></tbody>
-      </table>
-    </div>`;
+      <div class="stats-bar" id="statsBar" style="display:none">
+        <div class="stat"><div class="stat-val ok" id="sOk">0</div><div class="stat-lbl">SEGUROS</div></div>
+        <div class="stat"><div class="stat-val warn" id="sWarn">0</div><div class="stat-lbl">REVISAR</div></div>
+        <div class="stat"><div class="stat-val" id="sTotal">0</div><div class="stat-lbl">VIAJES</div></div>
+        <div class="stat"><div class="stat-val" id="sG01" style="color:#a78bfa">0</div><div class="stat-lbl">G-01</div></div>
+        <div class="stat"><div class="stat-val" id="sG02" style="color:#34d399">0</div><div class="stat-lbl">G-02</div></div>
+        <div class="stat"><div class="stat-val" id="sSubtotal" style="color:var(--accent);font-size:13px">$0</div><div class="stat-lbl">SUBTOTAL</div></div>
+      </div>
+      <div class="table-toolbar hidden" id="tableToolbar">
+        <button class="btn-reset-sort hidden" id="btnResetSort" onclick="resetSort()">↺ Restablecer orden</button>
+      </div>
+      <div class="table-wrap" id="tableWrap" style="display:none">
+        <table id="dataTable">
+          <thead><tr>
+            <th>#</th>
+            <th class="sortable" data-col="source" onclick="sortTable('source')">FUENTE <span class="sort-icon"></span></th>
+            <th class="sortable" data-col="fecha" onclick="sortTable('fecha')">FECHA <span class="sort-icon"></span></th>
+            <th class="sortable" data-col="folio" onclick="sortTable('folio')">FOLIO <span class="sort-icon"></span></th>
+            <th class="sortable" data-col="eco" onclick="sortTable('eco')">NÚM. ECO. <span class="sort-icon"></span></th>
+            <th class="sortable" data-col="placas" onclick="sortTable('placas')">PLACAS <span class="sort-icon"></span></th>
+            <th class="sortable" data-col="tiro" onclick="sortTable('tiro')">TIRO <span class="sort-icon"></span></th>
+            <th class="sortable" data-col="conf" onclick="sortTable('conf')">CONF. <span class="sort-icon"></span></th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>`;
+  } else {
+    // Incremental: keep the table, just reset the progress area display
+    let progressArea = document.getElementById('progressArea');
+    if (progressArea) {
+      const pt = progressArea.querySelector('#progressTitle');
+      const pct = progressArea.querySelector('#pct');
+      const pb = progressArea.querySelector('#pbar');
+      const plog = progressArea.querySelector('#plog');
+      if (pt) pt.textContent = 'Procesando imágenes pendientes...';
+      if (pct) pct.textContent = '0%';
+      if (pb) pb.style.width = '0%';
+      if (plog) plog.innerHTML = '';
+    } else {
+      // Progress area was removed somehow — create and prepend it
+      const main = document.getElementById('mainPanel');
+      progressArea = document.createElement('div');
+      progressArea.className = 'progress-area';
+      progressArea.id = 'progressArea';
+      progressArea.innerHTML = `
+        <div class="progress-header">
+          <span class="progress-title" id="progressTitle">Procesando imágenes pendientes...</span>
+          <span class="progress-pct" id="pct">0%</span>
+        </div>
+        <div class="progress-bar-outer"><div class="progress-bar-inner" id="pbar" style="width:0%"></div></div>
+        <div class="progress-log" id="plog"></div>`;
+      main.insertBefore(progressArea, main.firstChild);
+    }
+  }
 
-  // Build work units: one per image/page
+  // Build work units from filesToProcess only
   const units = [];
-  for (const entry of uploadedFiles) {
+  for (const entry of filesToProcess) {
     entry.pages.forEach((b64, pi) => {
       units.push({ entry, b64, mime: entry.mimes[pi] || 'image/jpeg', sourceName: entry.file.name });
     });
@@ -1106,6 +1163,7 @@ Responde SOLO JSON sin texto extra:
   } catch(e) {
     processingErrorCount++;
     addLog(log, `✗ ${label}: ${e.message}`, 'err');
+    unit.entry.status = 'error';
     return;
   }
 
@@ -1117,9 +1175,11 @@ Responde SOLO JSON sin texto extra:
   } catch(e) {
     processingErrorCount++;
     addLog(log, `✗ ${label}: respuesta JSON inválida`, 'err');
+    unit.entry.status = 'error';
     return;
   }
 
+  unit.entry.status = 'done'; // API succeeded — no matter how many tickets found
   const tickets = Array.isArray(parsed.tickets) ? parsed.tickets : [];
   if (tickets.length === 0) { addLog(log, `⚠ ${label}: sin tickets`, 'warn'); return; }
 
@@ -1179,6 +1239,7 @@ Responde SOLO JSON sin texto extra:
       bbox: t.bbox || null,
       folio_bbox: t.folio_bbox || null,
       reviewed: false,
+      _isNew: true,
     };
     row.confident = row.confident && hasRequiredRowData(row);
     rows.push(row);
@@ -1434,7 +1495,7 @@ function updateStats() {
   const warnParts = [];
   if (dupCount > 0) warnParts.push(`🔴 ${dupCount} folio(s) duplicado(s) — resuelve antes de exportar`);
   if (warn > 0) warnParts.push(`⚠ ${warn} fila(s) amarilla(s) requieren revisión`);
-  if (processingErrorCount > 0) warnParts.push(`✗ ${processingErrorCount} imagen(es) no se procesaron`);
+  if (processingErrorCount > 0) warnParts.push(`✗ ${processingErrorCount} imagen(es) con error — usa "Procesar pendientes" para reintentar`);
   const warnNote = document.getElementById('warnNote');
   if (warnParts.length > 0) {
     warnNote.textContent = warnParts.join(' · ');
@@ -1534,8 +1595,7 @@ function finalize() {
   processing = false;
   const btn = document.getElementById('btnProcess');
   btn.classList.remove('running');
-  btn.innerHTML = '<span>✓</span> LISTO — procesar de nuevo';
-  btn.disabled = false;
+
   document.getElementById('btnExport').disabled = rows.length === 0;
   document.getElementById('btnPdf').disabled = rows.length === 0;
   updateStats();
@@ -1556,13 +1616,18 @@ function finalize() {
 
   if (processingErrorCount > 0) {
     document.getElementById('headerMeta').textContent =
-      `${rows.length} tickets listos — ${processingErrorCount} imagen(es) con error (exportar de todas formas o volver a procesar)`;
+      `${rows.length} tickets listos — ${processingErrorCount} imagen(es) con error`;
   } else {
     document.getElementById('headerMeta').textContent = `${rows.length} tickets listos — revisa y descarga`;
   }
 
-  // Launch review for ALL tickets so user can verify each one
-  if (rows.length > 0) startReview([...rows]);
+  // Update button label via checkReady (single source of truth)
+  checkReady();
+
+  // Open review only for rows added in this batch
+  const newRows = rows.filter(r => r._isNew);
+  newRows.forEach(r => { delete r._isNew; });
+  if (newRows.length > 0) startReview(newRows);
 }
 
 // ── BBOX CROP HELPERS ──
@@ -2110,7 +2175,7 @@ function clearAll() {
   }
   // Revoke any existing blob URLs to free memory
   uploadedFiles.forEach(e => { if (e.previewUrl && e.previewUrl.startsWith('blob:')) URL.revokeObjectURL(e.previewUrl); });
-  uploadedFiles = []; rows = []; rowCounter = 0; fileCounter = 0; processingErrorCount = 0;
+  uploadedFiles = []; rows = []; rowCounter = 0; fileCounter = 0; processingErrorCount = 0; _processBatchStart = 0;
   uploadedFingerprints.clear();
   clearThumbRotations();
   reviewQueue = []; reviewIdx = 0; reviewRotDeg = 0; reviewCropMode = true;
