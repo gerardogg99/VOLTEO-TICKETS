@@ -42,8 +42,48 @@
 
   .sidebar {
     background: var(--surface); border-right: 1px solid var(--border);
-    padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem;
-    overflow-y: auto;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* ── Tabbed sidebar ── */
+  .sidebar-tabs {
+    display: flex; gap: 0; flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 10px 0;
+    background: var(--surface);
+  }
+  .stab {
+    flex: 1; padding: 8px 10px;
+    border-radius: 6px 6px 0 0;
+    background: var(--surface2); color: var(--muted);
+    border: 1px solid var(--border); border-bottom: none;
+    font-family: var(--sans); font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: color 0.15s, background 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+  }
+  .stab + .stab { margin-left: 4px; }
+  .stab.active {
+    background: var(--surface); color: var(--text);
+    border-bottom: 2px solid var(--accent);
+  }
+  .tab-panel {
+    flex: 1; overflow-y: auto; padding: 1rem;
+    display: flex; flex-direction: column; gap: 0.75rem;
+  }
+  .tab-panel.hidden { display: none; }
+
+  /* Upload badge on tab button */
+  .upload-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 17px; height: 17px; padding: 0 4px;
+    border-radius: 9px; background: var(--accent); color: #181a20;
+    font-size: 9px; font-weight: 700;
+  }
+  .upload-badge.hidden { display: none; }
+
+  /* PROCESAR button pinned at sidebar bottom */
+  .sidebar > .btn-process {
+    flex-shrink: 0; margin: 0 12px 12px;
   }
   .section-label {
     font-family: var(--sans); font-size: 10px; font-weight: 600;
@@ -84,7 +124,7 @@
 
 
   /* file list */
-  .file-list { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; }
+  .file-list { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 4px; }
   .file-item {
     display: flex; align-items: center; gap: 6px; padding: 4px 8px;
     background: var(--bg); border-radius: 4px; font-family: var(--mono); font-size: 11px;
@@ -356,7 +396,7 @@
       z-index: 100;
       transform: translateX(-100%);
       transition: transform 0.25s ease;
-      overflow-y: auto;
+      overflow: hidden;
       border-right: 1px solid var(--border);
       box-shadow: 4px 0 24px rgba(0,0,0,0.4);
     }
@@ -413,101 +453,117 @@
 <div class="app">
   <aside class="sidebar">
 
-    <!-- Token de acceso — guardado en localStorage, nunca en el código -->
-    <div>
-      <div class="section-label">🔑 Acceso</div>
-      <div class="config-block">
-        <div class="field-group">
-          <label>TOKEN DE APP</label>
-          <div style="position:relative">
-            <input type="password" id="cfgAppToken" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-              style="padding-right:36px;font-size:11px"
-              oninput="localStorage.setItem('g3_app_token',this.value.trim());checkReady()">
-            <span onclick="const i=document.getElementById('cfgAppToken');i.type=i.type==='password'?'text':'password'"
-              style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);font-size:13px">👁</span>
-          </div>
-          <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">
-            Guardado solo en tu navegador.<br>Debe coincidir con <code style="color:var(--accent2)">APP_TOKEN</code> en el Worker.
-          </div>
-        </div>
-      </div>
+    <!-- Tab bar -->
+    <div class="sidebar-tabs">
+      <button class="stab active" id="stabConfig">⚙ Config</button>
+      <button class="stab" id="stabUpload">📁 Upload <span id="uploadBadge" class="upload-badge hidden">0</span></button>
     </div>
 
-    <div>
-      <div class="section-label">⚙️ Configuración</div>
-      <div class="config-block">
-        <div class="field-group">
-          <label>PERÍODO DE LA SEMANA</label>
-          <div style="display:flex;gap:6px;align-items:center">
-            <input type="date" id="cfgFechaInicio" style="flex:1;font-size:11px;padding:4px 6px">
-            <span style="color:var(--muted);font-size:11px">→</span>
-            <input type="date" id="cfgFechaFin" style="flex:1;font-size:11px;padding:4px 6px">
-          </div>
-          <div style="font-size:10px;color:var(--muted);margin-top:3px">
-            Ayuda a la IA a confirmar fechas dudosas
-          </div>
-        </div>
-        <div class="field-group">
-          <label>PRECIO POR VIAJE ($)</label>
-          <input type="number" id="cfgPrecio" value="900" step="50">
-        </div>
-        <div class="field-group">
-          <label>TIRO PREDETERMINADO</label>
-          <select id="cfgTiro">
-            <option value="Banco El Marino / Pomoca">Banco El Marino / Pomoca</option>
-            <option value="Banco Carretas / Pomoca">Banco Carretas / Pomoca</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label>SERVICIO</label>
-          <input type="text" id="cfgServicio" value="Arena">
-        </div>
-        <div class="field-group">
-          <label>CAPACIDAD</label>
-          <input type="text" id="cfgCapacidad" value="14 M3">
-        </div>
-      </div>
-    </div>
+    <!-- Config tab: Token + Configuración + Camiones -->
+    <div id="tabConfig" class="tab-panel">
 
-    <div>
-      <div class="section-label">🚛 Camiones</div>
-      <div class="config-block">
-        <div id="trucksList"></div>
-        <button class="btn-add-truck" onclick="toggleAddTruckForm()">+ Agregar camión</button>
-        <div class="truck-add-form" id="truckAddForm">
+      <!-- Token de acceso — guardado en localStorage, nunca en el código -->
+      <div>
+        <div class="section-label">🔑 Acceso</div>
+        <div class="config-block">
           <div class="field-group">
-            <label>NÚM. ECO (ej: G-03)</label>
-            <input type="text" id="newTruckEco" placeholder="G-03">
+            <label>TOKEN DE APP</label>
+            <div style="position:relative">
+              <input type="password" id="cfgAppToken" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                style="padding-right:36px;font-size:11px"
+                oninput="localStorage.setItem('g3_app_token',this.value.trim());checkReady()">
+              <span onclick="const i=document.getElementById('cfgAppToken');i.type=i.type==='password'?'text':'password'"
+                style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);font-size:13px">👁</span>
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">
+              Guardado solo en tu navegador.<br>Debe coincidir con <code style="color:var(--accent2)">APP_TOKEN</code> en el Worker.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">⚙️ Configuración</div>
+        <div class="config-block">
+          <div class="field-group">
+            <label>PERÍODO DE LA SEMANA</label>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input type="date" id="cfgFechaInicio" style="flex:1;font-size:11px;padding:4px 6px">
+              <span style="color:var(--muted);font-size:11px">→</span>
+              <input type="date" id="cfgFechaFin" style="flex:1;font-size:11px;padding:4px 6px">
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px">
+              Ayuda a la IA a confirmar fechas dudosas
+            </div>
           </div>
           <div class="field-group">
-            <label>PLACAS (ej: AB-1234-C)</label>
-            <input type="text" id="newTruckPlacas" placeholder="AB-1234-C">
+            <label>PRECIO POR VIAJE ($)</label>
+            <input type="number" id="cfgPrecio" value="900" step="50">
           </div>
-          <button class="btn-save-truck" onclick="addTruck()">Guardar camión</button>
+          <div class="field-group">
+            <label>TIRO PREDETERMINADO</label>
+            <select id="cfgTiro">
+              <option value="Banco El Marino / Pomoca">Banco El Marino / Pomoca</option>
+              <option value="Banco Carretas / Pomoca">Banco Carretas / Pomoca</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>SERVICIO</label>
+            <input type="text" id="cfgServicio" value="Arena">
+          </div>
+          <div class="field-group">
+            <label>CAPACIDAD</label>
+            <input type="text" id="cfgCapacidad" value="14 M3">
+          </div>
         </div>
       </div>
-    </div>
 
-    <div>
-      <div class="section-label">📁 Archivos de tickets</div>
-      <div class="upload-zone" id="dropZone">
-        <input type="file" id="fileInput" accept="image/*,.heic,.heif" multiple onchange="handleFiles(this.files)">
-        <div class="upload-icon">🖼️</div>
-        <div class="upload-text">
-          <strong>Arrastra aquí</strong> o haz clic<br>
-          Fotos — o arrastra una <strong>carpeta entera</strong>
-        </div>
-        <div class="type-pills">
-          <span class="pill pill-img">JPG</span>
-          <span class="pill pill-img">PNG</span>
-          <span class="pill pill-img">HEIC</span>
-          
-          <span class="pill" style="color:#a78bfa;border-color:#3b2a5f;background:#1a0f30">📁 FOLDER</span>
+      <div>
+        <div class="section-label">🚛 Camiones</div>
+        <div class="config-block">
+          <div id="trucksList"></div>
+          <button class="btn-add-truck" onclick="toggleAddTruckForm()">+ Agregar camión</button>
+          <div class="truck-add-form" id="truckAddForm">
+            <div class="field-group">
+              <label>NÚM. ECO (ej: G-03)</label>
+              <input type="text" id="newTruckEco" placeholder="G-03">
+            </div>
+            <div class="field-group">
+              <label>PLACAS (ej: AB-1234-C)</label>
+              <input type="text" id="newTruckPlacas" placeholder="AB-1234-C">
+            </div>
+            <button class="btn-save-truck" onclick="addTruck()">Guardar camión</button>
+          </div>
         </div>
       </div>
-      <div class="file-list" id="fileList"></div>
-    </div>
 
+    </div><!-- /tabConfig -->
+
+    <!-- Upload tab: drop zone + file list -->
+    <div id="tabUpload" class="tab-panel hidden">
+
+      <div>
+        <div class="section-label">📁 Archivos de tickets</div>
+        <div class="upload-zone" id="dropZone">
+          <input type="file" id="fileInput" accept="image/*,.heic,.heif" multiple onchange="handleFiles(this.files)">
+          <div class="upload-icon">🖼️</div>
+          <div class="upload-text">
+            <strong>Arrastra aquí</strong> o haz clic<br>
+            Fotos — o arrastra una <strong>carpeta entera</strong>
+          </div>
+          <div class="type-pills">
+            <span class="pill pill-img">JPG</span>
+            <span class="pill pill-img">PNG</span>
+            <span class="pill pill-img">HEIC</span>
+            <span class="pill" style="color:#a78bfa;border-color:#3b2a5f;background:#1a0f30">📁 FOLDER</span>
+          </div>
+        </div>
+        <div class="file-list" id="fileList"></div>
+      </div>
+
+    </div><!-- /tabUpload -->
+
+    <!-- PROCESAR button — always visible, pinned at sidebar bottom -->
     <button class="btn-process" id="btnProcess" onclick="startProcessing()" disabled>
       <span id="btnIcon">⚡</span> PROCESAR TICKETS
     </button>
@@ -597,7 +653,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.18';
+const APP_VERSION = 'V 1.19';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
@@ -754,6 +810,7 @@ async function handleFiles(fileList) {
   if (fileInput) fileInput.value = '';
   renderFileList();
   checkReady();
+  if (uploadedFiles.length > 0) switchTab('upload');
   if (skipped || failed) {
     const parts = [];
     if (skipped) parts.push(`${skipped} duplicado(s) omitido(s)`);
@@ -794,6 +851,7 @@ function renderFileList() {
     document.querySelector('.upload-text').innerHTML =
       '<strong>Arrastra aquí</strong> o haz clic<br>Fotos — o arrastra una <strong>carpeta entera</strong>';
   }
+  updateUploadBadge();
 }
 
 function removeFile(fileId) {
@@ -1899,7 +1957,26 @@ function clearThumbRotations() {
   Object.keys(thumbRotation).forEach(k => delete thumbRotation[k]);
 }
 
+// ── Tabbed sidebar ──
+function switchTab(tab) {
+  document.getElementById('tabConfig').classList.toggle('hidden', tab !== 'config');
+  document.getElementById('tabUpload').classList.toggle('hidden', tab !== 'upload');
+  document.getElementById('stabConfig').classList.toggle('active', tab === 'config');
+  document.getElementById('stabUpload').classList.toggle('active', tab === 'upload');
+}
+
+function updateUploadBadge() {
+  const badge = document.getElementById('uploadBadge');
+  const count = uploadedFiles.length;
+  badge.textContent = count;
+  badge.classList.toggle('hidden', count === 0);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  // ── Tab switching ──
+  document.getElementById('stabConfig').addEventListener('click', () => switchTab('config'));
+  document.getElementById('stabUpload').addEventListener('click', () => switchTab('upload'));
+
   // ── Mobile drawer controls ──
   document.getElementById('btnMenuOpen')?.addEventListener('click', openDrawer);
   document.getElementById('drawerBackdrop')?.addEventListener('click', closeDrawer);
