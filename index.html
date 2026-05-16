@@ -129,16 +129,16 @@
   .log-line.err { color: var(--danger); }
   .log-line.info { color: var(--accent2); }
 
-  .table-wrap { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 8px; min-height: 200px; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .table-wrap { overflow-y: auto; max-height: 340px; border: 1px solid var(--border); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
   thead { position: sticky; top: 0; z-index: 10; }
   thead th {
     background: var(--surface); padding: 8px 10px; text-align: left;
-    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
     letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase;
     border-bottom: 1px solid var(--border); white-space: nowrap;
   }
-  tbody td { padding: 7px 10px; border-bottom: 1px solid #1a1f2e; font-family: var(--mono); font-size: 12px; vertical-align: middle; }
+  tbody td { padding: 7px 10px; border-bottom: 1px solid #1a1f2e; font-family: var(--mono); font-size: 14px; vertical-align: middle; }
   tbody tr:hover td { background: var(--surface2); }
   tbody tr.low-conf td { background: var(--warn-bg) !important; border-bottom-color: #2a1f00; }
   tbody tr.low-conf:hover td { background: #2e2600 !important; }
@@ -509,7 +509,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'V 1.13';
+const APP_VERSION = 'V 1.15';
 const API_URL = "https://plain-union-3bb7.gerardo-gg99.workers.dev/";
 
 // Restore saved settings on load
